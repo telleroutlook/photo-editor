@@ -89,10 +89,11 @@ export class WorkerManager {
     }
 
     return new Promise<WorkerResponse<T>>((resolve, reject) => {
-      const timeout = setTimeout(() => {
+      // Use window.setTimeout for browser environment to avoid NodeJS.Timeout type
+      const timeout = window.setTimeout(() => {
         this.workerInstance!.pendingMessages.delete(message.id);
         reject(new Error(`Worker message timeout: ${message.type}`));
-      }, this.messageTimeout) as unknown as number;
+      }, this.messageTimeout);
 
       this.workerInstance!.pendingMessages.set(message.id, {
         resolve: resolve as (response: WorkerResponse) => void,
