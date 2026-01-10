@@ -30,6 +30,7 @@ wasm-src/*/node_modules
 # WASM temporary files
 wasm-src/*/@*
 wasm-src/*/tsc
+wasm-src/*/*@*
 
 # But KEEP the compiled WASM modules in public/wasm/
 # These are needed for the app to run
