@@ -21,7 +21,7 @@ interface WorkerInstance {
   pendingMessages: Map<string, {
     resolve: (response: WorkerResponse) => void;
     reject: (error: Error) => void;
-    timeout: NodeJS.Timeout;
+    timeout: number;
   }>;
 }
 
@@ -92,7 +92,7 @@ export class WorkerManager {
       const timeout = setTimeout(() => {
         this.workerInstance!.pendingMessages.delete(message.id);
         reject(new Error(`Worker message timeout: ${message.type}`));
-      }, this.messageTimeout);
+      }, this.messageTimeout) as unknown as number;
 
       this.workerInstance!.pendingMessages.set(message.id, {
         resolve: resolve as (response: WorkerResponse) => void,
