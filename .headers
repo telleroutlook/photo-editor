@@ -1,0 +1,24 @@
+# Security headers
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-XSS-Protection: 1; mode=block
+
+# COOP/COEP for SharedArrayBuffer
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+# WASM caching
+/wasm/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts caching
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML no caching
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
