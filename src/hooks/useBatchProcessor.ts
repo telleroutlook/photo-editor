@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { wrap } from 'comlink';
+import { wrap, Remote } from 'comlink';
 import type { BatchWorkerApi } from '../workers/batchWorker';
 import type { BatchParams, BatchItemStatus, BatchStatus } from '../types/batch';
 
@@ -50,7 +50,7 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
   });
 
   const workerRef = useRef<Worker | null>(null);
-  const apiRef = ReturnType<typeof wrap<BatchWorkerApi>> | null>(null);
+  const apiRef = useRef<Remote<BatchWorkerApi> | null>(null);
 
   // Initialize worker
   useEffect(() => {
@@ -58,11 +58,12 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
       type: 'module',
     });
     workerRef.current = worker;
-    apiRef.current = wrap<BatchWorkerApi>(worker);
+    const api = wrap<BatchWorkerApi>(worker);
+    apiRef.current = api as unknown as Remote<BatchWorkerApi>;
 
-    // Initialize batch worker
-    apiRef.current.then((api) => {
-      api.init(maxConcurrent);
+    // Initialize batch worker (call asynchronously)
+    (api as any).init(maxConcurrent).catch((err: Error) => {
+      console.error('Failed to initialize worker:', err);
     });
 
     // Cleanup worker on unmount
@@ -105,9 +106,12 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
       });
 
       try {
-        const api = await apiRef.current;
+        const api = apiRef.current;
+        if (!api) {
+          throw new Error('Worker API not initialized');
+        }
 
-        const results = await api.processBatch(tasks, params, (progress, completed, total) => {
+        const results = await (api as any).processBatch(tasks, params, (progress: any, completed: any, total: any) => {
           const newStatus: BatchStatus = {
             total,
             completed,
@@ -122,8 +126,8 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
 
         const finalStatus: BatchStatus = {
           total,
-          completed: results.filter((r) => r.status === 'completed').length,
-          failed: results.filter((r) => r.status === 'failed').length,
+          completed: results.filter((r: any) => r.status === 'completed').length,
+          failed: results.filter((r: any) => r.status === 'failed').length,
           processing: 0,
           pending: 0,
           progress: 100,
@@ -134,7 +138,7 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
         onComplete?.(results);
 
         // Call onItemComplete for each result
-        results.forEach((item) => {
+        results.forEach((item: any) => {
           onItemComplete?.(item);
         });
 
@@ -153,11 +157,11 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
 
   // Cancel batch processing
   const cancelBatch = useCallback(async () => {
-    if (!apiRef.current) return;
+    const api = apiRef.current;
+    if (!api) return;
 
     try {
-      const api = await apiRef.current;
-      await api.cancelBatch();
+      await (api as any).cancelBatch();
       setProcessing(false);
       setStatus({
         total: 0,

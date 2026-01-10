@@ -162,8 +162,8 @@ describe('zipUtils', () => {
       // Setup DOM mocks
       document.body.appendChild = vi.fn();
       document.body.removeChild = vi.fn();
-      global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-      global.URL.revokeObjectURL = vi.fn();
+      globalThis.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+      globalThis.URL.revokeObjectURL = vi.fn();
 
       // Mock createElement to return a mock link element
       vi.spyOn(document, 'createElement').mockImplementation(() => {
@@ -186,10 +186,10 @@ describe('zipUtils', () => {
       downloadZip(blob, 'test.zip');
 
       expect(document.createElement).toHaveBeenCalledWith('a');
-      expect(global.URL.createObjectURL).toHaveBeenCalledWith(blob);
+      expect(globalThis.URL.createObjectURL).toHaveBeenCalledWith(blob);
       expect(document.body.appendChild).toHaveBeenCalled();
       expect(document.body.removeChild).toHaveBeenCalled();
-      expect(global.URL.revokeObjectURL).toHaveBeenCalled();
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
     });
 
     it('should use default filename if not provided', () => {
@@ -202,11 +202,11 @@ describe('zipUtils', () => {
     it('should cleanup object URL after download', () => {
       const blob = new Blob(['test content']);
       const mockUrl = 'blob:mock-url';
-      global.URL.createObjectURL = vi.fn(() => mockUrl);
+      globalThis.URL.createObjectURL = vi.fn(() => mockUrl);
 
       downloadZip(blob, 'test.zip');
 
-      expect(global.URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl);
+      expect(globalThis.URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl);
     });
   });
 });

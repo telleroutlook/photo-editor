@@ -70,16 +70,30 @@ export function BatchExport({ batchParams, onParamsChange }: BatchExportProps) {
 
     const exportData = results
       .filter((item) => item.status === 'completed' && item.result)
-      .map((item) => ({
-        fileName: item.fileName,
-        imageData: item.result!.imageData,
-        ...(includeOriginal && {
-          originalFile: {
+      .map((item) => {
+        const result: {
+          fileName: string;
+          imageData: ArrayBuffer;
+          originalFile?: { fileName: string; imageData: ArrayBuffer };
+        } = {
+          fileName: item.fileName,
+          imageData: item.result!.imageData,
+        };
+
+        if (includeOriginal) {
+          const originalImage = images.find((img) => img.id === item.imageId)!;
+          const uint8Array = originalImage.data;
+          // Create a new ArrayBuffer to avoid SharedArrayBuffer
+          const arrayBuffer = new ArrayBuffer(uint8Array.length);
+          new Uint8Array(arrayBuffer).set(uint8Array);
+          result.originalFile = {
             fileName: `original_${item.fileName}`,
-            imageData: images.find((img) => img.id === item.imageId)!.data,
-          },
-        }),
-      }));
+            imageData: arrayBuffer,
+          };
+        }
+
+        return result;
+      });
 
     const options: ZipExportOptions = {
       zipFileName,

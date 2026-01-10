@@ -62,7 +62,10 @@ export const CompressTool = () => {
     const originalName = originalFile.name.replace(/\.[^/.]+$/, '');
     const newName = `${originalName}_compressed.${extension}`;
 
-    return new File([compressedData], newName, { type: mimeType });
+    // Convert Uint8Array to regular ArrayBuffer to avoid SharedArrayBuffer issues
+    const buffer = new ArrayBuffer(compressedData.length);
+    new Uint8Array(buffer).set(compressedData);
+    return new File([buffer], newName, { type: mimeType });
   };
 
   const handleApplyCompress = async () => {

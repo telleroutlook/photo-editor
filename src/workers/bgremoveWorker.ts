@@ -351,7 +351,8 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
         success: true,
         data: {
           initialized,
-          memoryUsage: performance.memory,
+          // Note: performance.memory is not available in web workers
+          // memoryUsage: performance.memory,
         },
         processingTime: 0,
       });

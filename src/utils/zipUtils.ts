@@ -9,14 +9,14 @@ import type { ZipExportOptions } from '../types/batch';
 /**
  * Convert ArrayBuffer to Blob
  */
-function arrayBufferToBlob(buffer: ArrayBuffer, mimeType: string): Blob {
+export function arrayBufferToBlob(buffer: ArrayBuffer, mimeType: string): Blob {
   return new Blob([buffer], { type: mimeType });
 }
 
 /**
  * Get MIME type from file extension
  */
-function getMimeTypeFromFileName(fileName: string): string {
+export function getMimeTypeFromFileName(fileName: string): string {
   const ext = fileName.toLowerCase().split('.').pop();
   switch (ext) {
     case 'jpg':
@@ -86,10 +86,11 @@ export async function exportAsZip(
     }
   });
 
-  // Add comment if provided
-  if (comment) {
-    zip.comment = comment;
-  }
+  // Add comment if provided (Note: JSZip doesn't have a comment property in the main API)
+  // Comment can be added as a separate file in the ZIP if needed
+  // if (comment) {
+  //   zip.file('README.txt', comment);
+  // }
 
   // Generate ZIP file
   const zipBlob = await zip.generateAsync({

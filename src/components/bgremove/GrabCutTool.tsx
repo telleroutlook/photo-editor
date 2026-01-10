@@ -172,7 +172,10 @@ export function GrabCutTool({ imageData, width, height, onRemoveComplete }: Grab
       alert('Please draw a rectangle around the subject first');
       return;
     }
-    onRemoveComplete(segmentationMask.buffer, width, height);
+    // Convert Uint8Array to ArrayBuffer (avoid SharedArrayBuffer)
+    const arrayBuffer = new ArrayBuffer(segmentationMask.length);
+    new Uint8Array(arrayBuffer).set(segmentationMask);
+    onRemoveComplete(arrayBuffer, width, height);
     setSegmentationMask(null);
     setRect(null);
   }, [segmentationMask, width, height, onRemoveComplete]);

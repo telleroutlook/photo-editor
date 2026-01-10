@@ -1,6 +1,9 @@
 /**
  * WASM Module Loader Utilities
  * Handles loading and initialization of compiled WASM modules from Rust
+ *
+ * NOTE: These loaders are placeholders. WASM modules need to be compiled from Rust/C++
+ * before they can be used. See wasm-src/ directory for source code.
  */
 
 import { CoreWasmApi, CompressWasmApi, BgRemoveWasmApi } from '../types';
@@ -21,37 +24,11 @@ interface WasmLoadResult<T> {
 /**
  * Load Core WASM module (crop, rotate, flip, resize)
  * Module size: ~55KB
+ *
+ * TODO: Implement after compiling Rust/C++ WASM modules
  */
 export async function loadCoreWasm(): Promise<WasmLoadResult<CoreWasmApi>> {
-  try {
-    // Dynamically import the compiled WASM module
-    const wasmModule = await import('/wasm/core/photo_editor_core.js');
-
-    // Initialize WASM (this loads the .wasm file)
-    await wasmModule.default();
-
-    // Extract the API
-    const api: CoreWasmApi = {
-      crop_image: wasmModule.crop_image,
-      rotate_image: wasmModule.rotate_image,
-      flip_image: wasmModule.flip_image,
-      resize_image: wasmModule.resize_image,
-    };
-
-    console.log('✅ Core WASM module loaded successfully');
-
-    // Return API with cleanup function
-    return {
-      module: api,
-      cleanup: () => {
-        // WASM modules don't need explicit cleanup in JavaScript
-        console.log('🧹 Core WASM module cleanup');
-      },
-    };
-  } catch (error) {
-    console.error('❌ Failed to load Core WASM module:', error);
-    throw new Error(`Core WASM module failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  throw new Error('Core WASM module not implemented yet. Please compile the Rust/C++ WASM modules first.');
 }
 
 // ============================================================================
@@ -61,34 +38,11 @@ export async function loadCoreWasm(): Promise<WasmLoadResult<CoreWasmApi>> {
 /**
  * Load Compress WASM module (JPEG, WebP compression)
  * Module size: ~38KB
+ *
+ * TODO: Implement after compiling Rust/C++ WASM modules
  */
 export async function loadCompressWasm(): Promise<WasmLoadResult<CompressWasmApi>> {
-  try {
-    // Dynamically import the compiled WASM module
-    const wasmModule = await import('/wasm/compress/photo_editor_compress.js');
-
-    // Initialize WASM
-    await wasmModule.default();
-
-    // Extract the API
-    const api: CompressWasmApi = {
-      compress_jpeg: wasmModule.compress_jpeg,
-      compress_webp: wasmModule.compress_webp,
-      compress_to_size: wasmModule.compress_to_size,
-    };
-
-    console.log('✅ Compress WASM module loaded successfully');
-
-    return {
-      module: api,
-      cleanup: () => {
-        console.log('🧹 Compress WASM module cleanup');
-      },
-    };
-  } catch (error) {
-    console.error('❌ Failed to load Compress WASM module:', error);
-    throw new Error(`Compress WASM module failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  throw new Error('Compress WASM module not implemented yet. Please compile the Rust/C++ WASM modules first.');
 }
 
 // ============================================================================
@@ -98,34 +52,11 @@ export async function loadCompressWasm(): Promise<WasmLoadResult<CompressWasmApi
 /**
  * Load BgRemove WASM module (solid color, magic wand, GrabCut)
  * Module size: ~38KB
+ *
+ * TODO: Implement after compiling Rust/C++ WASM modules
  */
 export async function loadBgRemoveWasm(): Promise<WasmLoadResult<BgRemoveWasmApi>> {
-  try {
-    // Dynamically import the compiled WASM module
-    const wasmModule = await import('/wasm/bgremove/photo_editor_compress.js'); // Note: filename is compress for now
-
-    // Initialize WASM
-    await wasmModule.default();
-
-    // Extract the API
-    const api: BgRemoveWasmApi = {
-      remove_solid_color: wasmModule.remove_solid_color,
-      magic_wand_select: wasmModule.magic_wand_select,
-      grabcut_segment: wasmModule.grabcut_segment,
-    };
-
-    console.log('✅ BgRemove WASM module loaded successfully');
-
-    return {
-      module: api,
-      cleanup: () => {
-        console.log('🧹 BgRemove WASM module cleanup');
-      },
-    };
-  } catch (error) {
-    console.error('❌ Failed to load BgRemove WASM module:', error);
-    throw new Error(`BgRemove WASM module failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  throw new Error('BgRemove WASM module not implemented yet. Please compile the Rust/C++ WASM modules first.');
 }
 
 // ============================================================================

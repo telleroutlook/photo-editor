@@ -20,6 +20,8 @@ export interface ImageFile {
   size: number; // File size in bytes
   format: ImageFormat;
   exif?: EXIFData;
+  data: Uint8Array; // Raw image data
+  fileName: string; // Original file name
 }
 
 /**

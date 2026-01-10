@@ -63,15 +63,18 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
     const canvas = fabricCanvasRef.current;
 
-    FabricImage.fromURL(imageData.url, (img) => {
+    FabricImage.fromURL(imageData.url, {
+      crossOrigin: 'anonymous',
+    }).then((img) => {
       if (!img) return;
 
-      // Clear existing objects
+      // Clear existing objects and set background color
       canvas.clear();
-      canvas.setBackgroundColor('#1f2937', canvas.renderAll.bind(canvas));
+      canvas.backgroundColor = '#1f2937';
+      canvas.renderAll();
 
       // Scale image to fit canvas
-      const scale = canvasSize.width / img.width!;
+      const scale = canvasSize.width / (img.width || 1);
       img.scale(scale);
       img.set({
         left: canvasSize.width / 2,
@@ -83,7 +86,14 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       });
 
       canvas.add(img);
-      canvas.sendToBack(img);
+      // Ensure image is at the bottom by re-adding it first
+      const objs = canvas.getObjects();
+      if (objs.length > 1) {
+        canvas.remove(img);
+        canvas.add(img);
+        img.selectable = false;
+        img.evented = false;
+      }
 
       // Create crop rectangle overlay
       const rectWidth = initialCropRect?.width ?? img.width! * scale * 0.8;
@@ -115,6 +125,8 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       updateCropRect();
 
       setImageLoaded(true);
+    }).catch((err) => {
+      console.error('Failed to load image:', err);
     });
 
     return () => {

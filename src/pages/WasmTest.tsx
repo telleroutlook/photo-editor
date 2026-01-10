@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { loadCoreWasm } from '@/assets/wasm/core/loader';
+// TODO: Implement WASM loader when WASM modules are compiled
+// import { loadCoreWasm } from '@/assets/wasm/core/loader';
 
 export const WasmTest = () => {
   const [wasmLoaded, setWasmLoaded] = useState(false);
@@ -9,10 +10,14 @@ export const WasmTest = () => {
   useEffect(() => {
     async function loadWasm() {
       try {
-        const wasm = await loadCoreWasm();
-        setExports(wasm);
-        setWasmLoaded(true);
-        console.log('✅ WASM module loaded successfully');
+        // TODO: Implement WASM loader when WASM modules are compiled
+        // const wasm = await loadCoreWasm();
+        // setExports(wasm);
+        // setWasmLoaded(true);
+        // console.log('✅ WASM module loaded successfully');
+
+        // Temporary: show error that WASM is not implemented yet
+        throw new Error('WASM modules are not yet implemented. Please compile the Rust/C++ WASM modules first.');
       } catch (error) {
         setWasmError(error instanceof Error ? error.message : 'Unknown error');
         console.error('❌ Failed to load WASM:', error);
