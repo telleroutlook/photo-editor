@@ -5,9 +5,10 @@
  */
 
 import { MessageType, WorkerMessage, WorkerResponse } from '../types';
+import type { CoreWasmApi } from '../types';
 
 // Worker state
-let wasmModule: any = null;
+let wasmModule: CoreWasmApi | null = null;
 let initialized = false;
 
 /**
@@ -82,7 +83,7 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    const bytesWritten = wasmModule.crop_image(
+    const bytesWritten = await wasmModule.crop_image(
       input,
       width,
       height,
@@ -154,7 +155,7 @@ async function handleRotateImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.rotate_image(
+    await wasmModule.rotate_image(
       input,
       width,
       height,
@@ -217,7 +218,7 @@ async function handleFlipImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.flip_image(
+    await wasmModule.flip_image(
       input,
       width,
       height,
@@ -280,7 +281,7 @@ async function handleResizeImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.resize_image(
+    await wasmModule.resize_image(
       input,
       width,
       height,

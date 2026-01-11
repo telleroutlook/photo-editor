@@ -6,21 +6,27 @@
 import { useCallback } from 'react';
 import { useWasmWorker } from './useWasmWorker';
 import { MessageType } from '../types';
+import type {
+  RemoveSolidColorPayload,
+  MagicWandSelectPayload,
+  GrabCutSegmentPayload,
+  MaskData,
+} from '../types';
 
 interface RemoveSolidColorResult {
-  imageData: ArrayBuffer;
+  imageData: Uint8Array;
   width: number;
   height: number;
 }
 
 interface MagicWandResult {
-  mask: ArrayBuffer;
+  mask: Uint8Array;
   width: number;
   height: number;
 }
 
 interface GrabCutResult {
-  mask: ArrayBuffer;
+  mask: Uint8Array;
   width: number;
   height: number;
 }
@@ -80,23 +86,28 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       feather?: number
     ): Promise<RemoveSolidColorResult> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.REMOVE_SOLID_COLOR,
           payload: {
             imageData,
             width,
             height,
             targetColor,
-            tolerance,
-            feather,
-          },
+            tolerance: tolerance ?? 30,
+            feather: feather ?? 0,
+          } as RemoveSolidColorPayload,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'Solid color removal failed');
         }
 
-        return response.data as RemoveSolidColorResult;
+        // Convert ArrayBuffer to Uint8Array
+        return {
+          imageData: new Uint8Array(response.data.imageData),
+          width: response.data.width,
+          height: response.data.height,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('Solid color removal failed');
       }
@@ -118,7 +129,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       connected?: boolean
     ): Promise<MagicWandResult> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.MAGIC_WAND_SELECT,
           payload: {
             imageData,
@@ -126,16 +137,21 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
             height,
             seedX,
             seedY,
-            tolerance,
-            connected,
-          },
+            tolerance: tolerance ?? 30,
+            connected: connected ?? true,
+          } as MagicWandSelectPayload,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'Magic wand selection failed');
         }
 
-        return response.data as MagicWandResult;
+        // Convert ArrayBuffer to Uint8Array
+        return {
+          mask: new Uint8Array(response.data.mask),
+          width: response.data.width,
+          height: response.data.height,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('Magic wand selection failed');
       }
@@ -158,7 +174,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       iterations?: number
     ): Promise<GrabCutResult> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.GRABCUT_SEGMENT,
           payload: {
             imageData,
@@ -168,15 +184,20 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
             rectY,
             rectWidth,
             rectHeight,
-            iterations,
-          },
+            iterations: iterations ?? 5,
+          } as any,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'GrabCut segmentation failed');
         }
 
-        return response.data as GrabCutResult;
+        // Convert ArrayBuffer to Uint8Array
+        return {
+          mask: new Uint8Array(response.data.mask),
+          width: response.data.width,
+          height: response.data.height,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('GrabCut segmentation failed');
       }

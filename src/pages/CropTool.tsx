@@ -17,6 +17,15 @@ export const CropTool = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
 
+  // Cleanup result URL on unmount
+  useEffect(() => {
+    return () => {
+      if (resultUrl) {
+        URL.revokeObjectURL(resultUrl);
+      }
+    };
+  }, [resultUrl]);
+
   if (!selectedImage) {
     return (
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
@@ -60,7 +69,11 @@ export const CropTool = () => {
 
       // Send to WASM worker for cropping
       const worker = getCoreWorker();
-      const response = await worker.sendMessage({
+      const response = await worker.sendMessage<{
+        imageData: ImageData;
+        width: number;
+        height: number;
+      }>({
         id: `${Date.now()}-crop`,
         type: MessageType.CROP_IMAGE,
         payload: {
@@ -72,13 +85,13 @@ export const CropTool = () => {
         timestamp: Date.now(),
       });
 
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.error || 'Crop operation failed');
       }
 
       // Convert result back to ImageData
       const croppedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
+        new Uint8ClampedArray(response.data.imageData.data),
         response.data.width,
         response.data.height
       );
@@ -123,15 +136,6 @@ export const CropTool = () => {
     setCropRect(fullImageCrop);
     setResultUrl(null);
   };
-
-  // Cleanup result URL on unmount
-  useEffect(() => {
-    return () => {
-      if (resultUrl) {
-        URL.revokeObjectURL(resultUrl);
-      }
-    };
-  }, [resultUrl]);
 
   return (
     <div className="space-y-6">

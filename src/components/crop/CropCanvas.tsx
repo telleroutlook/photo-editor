@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Canvas, Rect, Image as FabricImage } from 'fabric';
 import { CropRect } from '../../types';
 
@@ -56,6 +56,29 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     window.addEventListener('resize', updateCanvasSize);
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, [imageData.width, imageData.height]);
+
+  // Update crop rect callback (must be defined before useEffects that use it)
+  const updateCropRect = useCallback(() => {
+    if (!cropRectRef.current) return;
+
+    const rect = cropRectRef.current;
+
+    // Convert canvas coordinates back to image coordinates
+    const cropRect: CropRect = {
+      x: Math.round((rect.left! * imageData.width) / canvasSize.width),
+      y: Math.round((rect.top! * imageData.height) / canvasSize.height),
+      width: Math.round((rect.width! * imageData.width) / canvasSize.width),
+      height: Math.round((rect.height! * imageData.height) / canvasSize.height),
+    };
+
+    // Clamp values to image bounds
+    cropRect.x = Math.max(0, Math.min(cropRect.x, imageData.width - cropRect.width));
+    cropRect.y = Math.max(0, Math.min(cropRect.y, imageData.height - cropRect.height));
+    cropRect.width = Math.min(cropRect.width, imageData.width);
+    cropRect.height = Math.min(cropRect.height, imageData.height);
+
+    onCropChange(cropRect);
+  }, [cropRectRef, canvasSize, imageData, onCropChange]);
 
   // Load image onto canvas
   useEffect(() => {
@@ -137,7 +160,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         }
       });
     };
-  }, [imageData.url, canvasSize, initialCropRect]);
+  }, [imageData.url, canvasSize, initialCropRect, updateCropRect]);
 
   // Update crop rectangle when aspect ratio changes
   useEffect(() => {
@@ -162,7 +185,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       cropRect.set('lockAspectRatio', false);
       cropRect.set('aspectRatio', undefined);
     }
-  }, [aspectRatio, imageLoaded]);
+  }, [aspectRatio, imageLoaded, updateCropRect]);
 
   // Listen to crop rectangle modifications
   useEffect(() => {
@@ -182,30 +205,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       canvas.off('object:scaling', handleObjectModified);
       canvas.off('object:moving', handleObjectModified);
     };
-  }, [imageData]);
-
-  const updateCropRect = () => {
-    if (!cropRectRef.current) return;
-
-    const rect = cropRectRef.current;
-    const scale = canvasSize.width / imageData.width;
-
-    // Convert canvas coordinates back to image coordinates
-    const cropRect: CropRect = {
-      x: Math.round((rect.left! * imageData.width) / canvasSize.width),
-      y: Math.round((rect.top! * imageData.height) / canvasSize.height),
-      width: Math.round((rect.width! * imageData.width) / canvasSize.width),
-      height: Math.round((rect.height! * imageData.height) / canvasSize.height),
-    };
-
-    // Clamp values to image bounds
-    cropRect.x = Math.max(0, Math.min(cropRect.x, imageData.width - cropRect.width));
-    cropRect.y = Math.max(0, Math.min(cropRect.y, imageData.height - cropRect.height));
-    cropRect.width = Math.min(cropRect.width, imageData.width);
-    cropRect.height = Math.min(cropRect.height, imageData.height);
-
-    onCropChange(cropRect);
-  };
+  }, [imageData, updateCropRect]);
 
   return (
     <div className="w-full">

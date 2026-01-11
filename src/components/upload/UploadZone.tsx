@@ -1,10 +1,11 @@
 import React, { useState, useRef, DragEvent, ChangeEvent } from 'react';
 import { validateFiles } from '../../utils/fileUtils';
 import { MAX_FILE_SIZE, MAX_FILES_UPLOAD, SUPPORTED_INPUT_FORMATS } from '../../utils/constants';
+import { ImageFormat } from '../../types';
 
 interface UploadZoneProps {
   onFilesSelected: (files: File[]) => void;
-  acceptedFormats?: string[];
+  acceptedFormats?: ImageFormat[];
   maxFileSize?: number;
   maxFiles?: number;
   disabled?: boolean;
@@ -68,7 +69,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     const validationResult = validateFiles(files, {
       maxSize: maxFileSize,
       maxCount: maxFiles,
-      allowedFormats: acceptedFormats as any,
+      allowedFormats: acceptedFormats,
     });
 
     if (!validationResult.valid) {
@@ -116,7 +117,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           type="file"
           multiple
           className="hidden"
-          accept={acceptedFormats.join(',')}
+          accept={acceptedFormats.map(f => f.toString()).join(',')}
           onChange={handleFileInput}
           disabled={disabled}
         />
@@ -139,7 +140,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         </p>
 
         <div className="text-xs text-gray-400 space-y-1">
-          <p>Supported: {acceptedFormats.map(f => f.split('/')[1]?.toUpperCase()).join(', ')}</p>
+          <p>Supported: {acceptedFormats.map(f => f.toString().split('/')[1]?.toUpperCase()).join(', ')}</p>
           <p>Max size: {Math.round(maxFileSize / 1024 / 1024)}MB</p>
         </div>
 

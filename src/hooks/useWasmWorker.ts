@@ -14,7 +14,7 @@ interface UseWasmWorkerOptions {
 }
 
 interface UseWasmWorkerReturn {
-  sendMessage: <T = any>(message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>) => Promise<WorkerResponse>;
+  sendMessage: <T = unknown>(message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>) => Promise<WorkerResponse<T>>;
   loading: boolean;
   error: Error | null;
   initialized: boolean;
@@ -37,7 +37,7 @@ export function useWasmWorker({
   const [initialized, setInitialized] = useState(false);
 
   // Message handlers map (for promise-based communication)
-  const messageHandlersRef = useRef<Map<string, (response: WorkerResponse) => void>>(new Map());
+  const messageHandlersRef = useRef<Map<string, (response: WorkerResponse<unknown>) => void>>(new Map());
 
   /**
    * Initialize worker
@@ -136,9 +136,9 @@ export function useWasmWorker({
   /**
    * Send message to worker
    */
-  const sendMessage = useCallback(<T = any>(
+  const sendMessage = useCallback(<T = unknown>(
     message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>
-  ): Promise<WorkerResponse> => {
+  ): Promise<WorkerResponse<T>> => {
     return new Promise((resolve, reject) => {
       if (!workerRef.current) {
         reject(new Error('Worker not initialized'));
@@ -153,11 +153,12 @@ export function useWasmWorker({
       };
 
       // Set up handler for this message
-      messageHandlersRef.current.set(id, (response: WorkerResponse) => {
-        if (response.success) {
-          resolve(response);
+      messageHandlersRef.current.set(id, (response: WorkerResponse<unknown>) => {
+        const typedResponse = response as WorkerResponse<T>;
+        if (typedResponse.success) {
+          resolve(typedResponse);
         } else {
-          reject(new Error(response.error || 'Operation failed'));
+          reject(new Error(typedResponse.error || 'Operation failed'));
         }
       });
 
@@ -200,19 +201,13 @@ export function useWasmWorker({
       }
     };
 
-    // Store original onMessage
-    const originalOnMessage = onMessage;
-
     // Wrap onMessage to handle initialization
-    const wrappedOnMessage = (response: WorkerResponse) => {
+    const _wrappedOnMessage = (response: WorkerResponse) => {
       handleInitMessage(response);
-      if (originalOnMessage) {
-        originalOnMessage(response);
+      if (onMessage) {
+        onMessage(response);
       }
     };
-
-    // Update onMessage temporarily
-    // Note: This is a simplified approach. In production, you might want a more robust solution.
 
     return () => {
       // Cleanup

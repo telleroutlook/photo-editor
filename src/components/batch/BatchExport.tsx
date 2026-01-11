@@ -10,11 +10,10 @@ import { FileSelection } from './FileSelection';
 import { BatchProgress } from './BatchProgress';
 import { exportAndDownloadZip } from '../../utils/zipUtils';
 import type { BatchParams, ZipExportOptions } from '../../types/batch';
-import { BatchOperation } from '../../types/batch';
 
 interface BatchExportProps {
   batchParams: BatchParams;
-  onParamsChange?: (params: BatchParams) => void;
+  onParamsChange?: (_params: BatchParams) => void;
 }
 
 export function BatchExport({ batchParams, onParamsChange }: BatchExportProps) {

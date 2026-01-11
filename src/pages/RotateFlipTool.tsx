@@ -4,6 +4,13 @@ import { RotateFlipControls } from '../components/rotate';
 import { RotateAngle, MessageType } from '../types';
 import { getCoreWorker } from '../utils/workerManager';
 
+// Type-safe worker response data
+interface ImageDataResponse {
+  imageData: Uint8ClampedArray | Uint8Array;
+  width: number;
+  height: number;
+}
+
 export const RotateFlipTool = () => {
   const { getSelectedImage } = useImageStore();
   const selectedImage = getSelectedImage();
@@ -12,6 +19,15 @@ export const RotateFlipTool = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<string | null>(null);
+
+  // Cleanup result URL on unmount
+  useEffect(() => {
+    return () => {
+      if (resultUrl) {
+        URL.revokeObjectURL(resultUrl);
+      }
+    };
+  }, [resultUrl]);
 
   if (!selectedImage) {
     return (
@@ -53,7 +69,7 @@ export const RotateFlipTool = () => {
 
       // Send to WASM worker for rotation
       const worker = getCoreWorker();
-      const response = await worker.sendMessage({
+      const response = await worker.sendMessage<ImageDataResponse>({
         id: `${Date.now()}-rotate`,
         type: MessageType.ROTATE_IMAGE,
         payload: {
@@ -65,7 +81,7 @@ export const RotateFlipTool = () => {
         timestamp: Date.now(),
       });
 
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.error || 'Rotation operation failed');
       }
 
@@ -140,7 +156,11 @@ export const RotateFlipTool = () => {
 
       // Send to WASM worker for flipping (direction 0 = horizontal)
       const worker = getCoreWorker();
-      const response = await worker.sendMessage({
+      const response = await worker.sendMessage<{
+        imageData: Uint8ClampedArray;
+        width: number;
+        height: number;
+      }>({
         id: `${Date.now()}-flip`,
         type: MessageType.FLIP_IMAGE,
         payload: {
@@ -152,7 +172,7 @@ export const RotateFlipTool = () => {
         timestamp: Date.now(),
       });
 
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.error || 'Flip operation failed');
       }
 
@@ -223,7 +243,7 @@ export const RotateFlipTool = () => {
 
       // Send to WASM worker for flipping (direction 1 = vertical)
       const worker = getCoreWorker();
-      const response = await worker.sendMessage({
+      const response = await worker.sendMessage<ImageDataResponse>({
         id: `${Date.now()}-flip`,
         type: MessageType.FLIP_IMAGE,
         payload: {
@@ -235,7 +255,7 @@ export const RotateFlipTool = () => {
         timestamp: Date.now(),
       });
 
-      if (!response.success) {
+      if (!response.success || !response.data) {
         throw new Error(response.error || 'Flip operation failed');
       }
 
@@ -280,15 +300,6 @@ export const RotateFlipTool = () => {
     setResultUrl(null);
     setLastOperation(null);
   };
-
-  // Cleanup result URL on unmount
-  useEffect(() => {
-    return () => {
-      if (resultUrl) {
-        URL.revokeObjectURL(resultUrl);
-      }
-    };
-  }, [resultUrl]);
 
   return (
     <div className="space-y-6">

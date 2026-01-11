@@ -5,9 +5,10 @@
  */
 
 import { MessageType, WorkerMessage, WorkerResponse } from '../types';
+import type { BgRemoveWasmApi } from '../types';
 
 // Worker state
-let wasmModule: any = null;
+let wasmModule: BgRemoveWasmApi | null = null;
 let initialized = false;
 
 /**
@@ -96,11 +97,11 @@ async function handleRemoveSolidColor(message: WorkerMessage<any>): Promise<void
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.remove_solid_color(
+    await wasmModule.remove_solid_color(
       input,
       width,
       height,
-      targetColor,
+      targetColor as [number, number, number],
       tolerance ?? 30, // Default tolerance
       feather ?? 0,    // Default feather
       output
@@ -168,7 +169,7 @@ async function handleMagicWandSelect(message: WorkerMessage<any>): Promise<void>
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.magic_wand_select(
+    await wasmModule.magic_wand_select(
       input,
       width,
       height,
@@ -262,7 +263,7 @@ async function handleGrabCutSegment(message: WorkerMessage<any>): Promise<void> 
       throw new Error('WASM module not initialized');
     }
 
-    wasmModule.grabcut_segment(
+    await wasmModule.grabcut_segment(
       input,
       width,
       height,

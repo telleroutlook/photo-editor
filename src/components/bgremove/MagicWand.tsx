@@ -95,7 +95,7 @@ export function MagicWand({ imageData, width, height, onRemoveComplete }: MagicW
 
     try {
       const result = await magicWandSelect(imageData, width, height, seedPoint.x, seedPoint.y, tolerance, connected);
-      onRemoveComplete(result.mask, width, height);
+      onRemoveComplete(result.mask.buffer as ArrayBuffer, width, height);
       setSelectionMask(null);
       setSeedPoint(null);
     } catch (error) {

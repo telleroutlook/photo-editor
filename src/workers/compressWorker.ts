@@ -5,12 +5,13 @@
  */
 
 import { MessageType, WorkerMessage, WorkerResponse } from '../types';
+import type { CompressWasmApi } from '../types';
 
 // ============================================================================
 // State Management
 // ============================================================================
 
-let wasmModule: any = null;
+let wasmModule: CompressWasmApi | null = null;
 let initialized = false;
 
 // ============================================================================
@@ -20,7 +21,7 @@ let initialized = false;
 /**
  * Load real WASM module from compiled Rust code
  */
-async function loadWasmModule(): Promise<void> {
+async function loadWasmModule(): Promise<CompressWasmApi> {
   try {
     console.log('🔄 Loading Compress WASM module...');
 
@@ -36,7 +37,7 @@ async function loadWasmModule(): Promise<void> {
     console.log('✅ Compress WASM module loaded successfully');
     console.log('📦 Module exports:', Object.keys(wasmModule));
 
-    return wasmModule;
+    return wasmModule as CompressWasmApi;
   } catch (error) {
     console.error('❌ Failed to load Compress WASM module:', error);
     throw error;
@@ -112,7 +113,7 @@ async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
     const output = new Uint8Array(input.length);
 
     // Call WASM function
-    const compressedSize = wasmModule.compress_jpeg(
+    const compressedSize = await wasmModule.compress_jpeg(
       input,
       width,
       height,
@@ -184,7 +185,7 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
     const output = new Uint8Array(input.length);
 
     // Call WASM function
-    const compressedSize = wasmModule.compress_webp(
+    const compressedSize = await wasmModule.compress_webp(
       input,
       width,
       height,
@@ -266,7 +267,7 @@ async function handleCompressToSize(message: WorkerMessage<any>): Promise<void> 
     const wasmFormat = formatMap[format] || 0;
 
     // Call WASM compress_to_size function
-    const result = wasmModule.compress_to_size(
+    const result = await wasmModule.compress_to_size(
       input,
       width,
       height,

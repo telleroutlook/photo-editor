@@ -6,6 +6,11 @@
 import { useCallback } from 'react';
 import { useWasmWorker } from './useWasmWorker';
 import { MessageType, CompressionFormat } from '../types';
+import type {
+  CompressJpegPayload,
+  CompressWebpPayload,
+  CompressToSizePayload,
+} from '../types';
 
 interface CompressResult {
   imageData: Uint8Array;
@@ -44,21 +49,26 @@ export function useCompressWorker(): UseCompressWorkerReturn {
   const compressJpeg = useCallback(
     async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.COMPRESS_JPEG,
           payload: {
             imageData,
             width,
             height,
             quality,
-          },
+          } as CompressJpegPayload,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'JPEG compression failed');
         }
 
-        return response.data as CompressResult;
+        return {
+          imageData: response.data.imageData,
+          size: response.data.size,
+          format: response.data.format,
+          quality: response.data.quality,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('JPEG compression failed');
       }
@@ -72,21 +82,26 @@ export function useCompressWorker(): UseCompressWorkerReturn {
   const compressWebp = useCallback(
     async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.COMPRESS_WEBP,
           payload: {
             imageData,
             width,
             height,
             quality,
-          },
+          } as CompressWebpPayload,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'WebP compression failed');
         }
 
-        return response.data as CompressResult;
+        return {
+          imageData: response.data.imageData,
+          size: response.data.size,
+          format: response.data.format,
+          quality: response.data.quality,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('WebP compression failed');
       }
@@ -107,7 +122,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       format: CompressionFormat
     ): Promise<CompressResult & { quality: number }> => {
       try {
-        const response = await sendMessage({
+        const response = await sendMessage<any>({
           type: MessageType.COMPRESS_TO_SIZE,
           payload: {
             imageData,
@@ -115,14 +130,19 @@ export function useCompressWorker(): UseCompressWorkerReturn {
             height,
             targetSize,
             format,
-          },
+          } as CompressToSizePayload,
         });
 
         if (!response.success || !response.data) {
           throw new Error(response.error || 'Compress to size failed');
         }
 
-        return response.data as CompressResult & { quality: number };
+        return {
+          imageData: response.data.imageData,
+          size: response.data.size,
+          format: response.data.format,
+          quality: response.data.quality,
+        };
       } catch (err) {
         throw err instanceof Error ? err : new Error('Compress to size failed');
       }

@@ -66,7 +66,7 @@ export function ColorRemoval({ imageData, width, height, onRemoveComplete }: Col
 
     try {
       const result = await removeSolidColor(imageData, width, height, targetColor, tolerance, feather);
-      onRemoveComplete(result.imageData, result.width, result.height);
+      onRemoveComplete(result.imageData.buffer as ArrayBuffer, result.width, result.height);
       setShowPreview(false);
     } catch (error) {
       alert(`Error removing background: ${error instanceof Error ? error.message : 'Unknown error'}`);

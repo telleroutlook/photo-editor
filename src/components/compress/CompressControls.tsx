@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CompressionFormat } from '../../types';
 import { formatBytes } from '../../utils/constants';
 
@@ -36,7 +36,7 @@ const TARGET_SIZE_PRESETS = [
 
 export const CompressControls: React.FC<CompressControlsProps> = ({
   originalSize,
-  originalFormat,
+  originalFormat: _originalFormat,
   onCompressChange,
   onApply,
   onReset,
@@ -50,13 +50,18 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
   const [customTargetSize, setCustomTargetSize] = useState('1');
   const [targetSizeUnit, setTargetSizeUnit] = useState<'MB' | 'KB'>('MB');
 
-  useEffect(() => {
+  // Stable callback to avoid unnecessary re-renders
+  const notifyCompressChange = useCallback(() => {
     if (mode === 'quality') {
       onCompressChange({ format, quality });
     } else {
       onCompressChange({ format, quality, targetSize });
     }
-  }, [mode, format, quality, targetSize]);
+  }, [mode, format, quality, targetSize, onCompressChange]);
+
+  useEffect(() => {
+    notifyCompressChange();
+  }, [notifyCompressChange]);
 
   const handleFormatChange = (newFormat: CompressionFormat) => {
     setFormat(newFormat);
@@ -107,7 +112,6 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
     ? Math.round(originalSize * (quality / 100))
     : targetSize;
 
-  const isOriginalFormat = format === CompressionFormat.JPEG && originalFormat.toLowerCase() === 'jpeg';
   const isValidTargetSize = targetSize > 0 && targetSize < originalSize;
   const canApply = mode === 'quality' ? quality < 100 : isValidTargetSize;
 

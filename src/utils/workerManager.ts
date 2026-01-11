@@ -83,7 +83,7 @@ export class WorkerManager {
   /**
    * Send a message to the worker and wait for response
    */
-  async sendMessage<T = any>(message: WorkerMessage): Promise<WorkerResponse<T>> {
+  async sendMessage<T = unknown>(message: WorkerMessage): Promise<WorkerResponse<T>> {
     if (!this.workerInstance) {
       await this.init();
     }
@@ -128,7 +128,19 @@ export class WorkerManager {
    * Handle worker errors
    */
   private handleError(error: ErrorEvent): void {
-    console.error('Worker error:', error);
+    console.error('Worker error:', {
+      message: error.message,
+      filename: error.filename,
+      lineno: error.lineno,
+      colno: error.colno,
+      error: error.error,
+    });
+
+    // If worker is in a bad state, terminate it
+    if (this.workerInstance && error.message.includes('out of memory')) {
+      console.warn('Worker ran out of memory, terminating...');
+      this.terminate();
+    }
   }
 
   /**
@@ -136,14 +148,27 @@ export class WorkerManager {
    */
   terminate(): void {
     if (this.workerInstance) {
-      // Clear all pending messages
+      // Clear all pending messages with proper error handling
       for (const [id, pending] of this.workerInstance.pendingMessages) {
         clearTimeout(pending.timeout);
-        pending.reject(new Error('Worker terminated'));
+
+        // Reject with proper error object
+        try {
+          pending.reject(new Error('Worker terminated'));
+        } catch (e) {
+          console.error('Failed to reject pending message:', id, e);
+        }
       }
 
-      // Terminate worker
-      this.workerInstance.worker.terminate();
+      this.workerInstance.pendingMessages.clear();
+
+      // Terminate worker thread with error handling
+      try {
+        this.workerInstance.worker.terminate();
+      } catch (e) {
+        console.error('Worker termination failed:', e);
+      }
+
       this.workerInstance = null;
     }
   }

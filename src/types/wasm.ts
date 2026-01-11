@@ -253,20 +253,24 @@ export interface BgRemoveWasmApi {
    * @param input - Input image data (RGBA format)
    * @param width - Image width in pixels
    * @param height - Image height in pixels
-   * @param foregroundMask - Foreground marker mask (green brush)
-   * @param backgroundMask - Background marker mask (red brush)
+   * @param rectX - Initial bounding rectangle X coordinate
+   * @param rectY - Initial bounding rectangle Y coordinate
+   * @param rectWidth - Initial bounding rectangle width
+   * @param rectHeight - Initial bounding rectangle height
    * @param iterations - Number of iterations (default: 5)
-   * @param alphaOutput - Output alpha channel buffer
-   * @returns Number of bytes written to alpha output
+   * @param maskOutput - Output mask buffer (1 byte per pixel)
+   * @returns Number of bytes written to mask output
    */
   grabcut_segment: (
     input: Uint8Array,
     width: number,
     height: number,
-    foregroundMask: Uint8Array,
-    backgroundMask: Uint8Array,
+    rectX: number,
+    rectY: number,
+    rectWidth: number,
+    rectHeight: number,
     iterations: number,
-    alphaOutput: Uint8Array
+    maskOutput: Uint8Array
   ) => Promise<number>;
 }
 

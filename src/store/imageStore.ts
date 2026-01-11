@@ -12,11 +12,20 @@ interface ImageState {
   selectedImageId: string | null;
   processedImages: Map<string, ProcessedImage>;
 
+  // Memory management
+  maxImages: number;
+  cleanupThreshold: number;
+  cleanupScheduled: boolean;
+
   // Actions
   addImages: (files: File[]) => Promise<void>;
   removeImage: (id: string) => void;
   selectImage: (id: string) => void;
   clearAll: () => void;
+
+  // Memory management actions
+  scheduleCleanup: () => void;
+  performCleanup: (keepCount: number) => void;
 
   // Operation management
   addOperation: (imageId: string, operation: AnyOperation) => void;
@@ -38,12 +47,17 @@ export const useImageStore = create<ImageState>((set, get) => ({
   selectedImageId: null,
   processedImages: new Map(),
 
+  // Memory management settings
+  maxImages: 50, // Maximum number of images to keep in memory
+  cleanupThreshold: 20, // Trigger cleanup when exceeding this count
+  cleanupScheduled: false,
+
   /**
    * Add images to the store
    * Validates files and extracts metadata
    */
   addImages: async (files: File[]) => {
-    const { images } = get();
+    const { images, cleanupThreshold, cleanupScheduled } = get();
 
     // Process each file
     const processedFiles = await Promise.all(
@@ -74,6 +88,60 @@ export const useImageStore = create<ImageState>((set, get) => ({
       images: [...state.images, ...processedFiles],
       selectedImageId: processedFiles[0]?.id ?? state.selectedImageId,
     }));
+
+    // Check if cleanup is needed
+    const newImageCount = images.length + processedFiles.length;
+    if (newImageCount > cleanupThreshold && !cleanupScheduled) {
+      get().scheduleCleanup();
+    }
+  },
+
+  /**
+   * Schedule memory cleanup
+   */
+  scheduleCleanup: () => {
+    const { cleanupScheduled } = get();
+    if (cleanupScheduled) return;
+
+    set({ cleanupScheduled: true });
+
+    // Delay cleanup to avoid interrupting user workflow
+    setTimeout(() => {
+      const { maxImages } = get();
+      get().performCleanup(maxImages);
+    }, 1000);
+  },
+
+  /**
+   * Perform cleanup of old images
+   */
+  performCleanup: (keepCount: number) => {
+    const { images } = get();
+
+    if (images.length <= keepCount) {
+      set({ cleanupScheduled: false });
+      return;
+    }
+
+    // Remove oldest images beyond the keep count
+    const toRemove = images.slice(0, images.length - keepCount);
+
+    // Revoke blob URLs
+    toRemove.forEach((img) => {
+      try {
+        URL.revokeObjectURL(img.url);
+      } catch (e) {
+        console.warn('Failed to revoke URL during cleanup:', img.id, e);
+      }
+    });
+
+    set((state) => ({
+      images: state.images.slice(-keepCount),
+      selectedImageId: state.selectedImageId,
+      cleanupScheduled: false,
+    }));
+
+    console.log(`Cleaned up ${toRemove.length} old images to free memory`);
   },
 
   /**
@@ -85,7 +153,11 @@ export const useImageStore = create<ImageState>((set, get) => ({
 
       // Revoke object URL to free memory
       if (imageToRemove) {
-        URL.revokeObjectURL(imageToRemove.url);
+        try {
+          URL.revokeObjectURL(imageToRemove.url);
+        } catch (e) {
+          console.warn('Failed to revoke URL for image:', id, e);
+        }
       }
 
       // Remove from images array
@@ -119,7 +191,13 @@ export const useImageStore = create<ImageState>((set, get) => ({
     const { images } = get();
 
     // Revoke all object URLs
-    images.forEach((img) => URL.revokeObjectURL(img.url));
+    images.forEach((img) => {
+      try {
+        URL.revokeObjectURL(img.url);
+      } catch (e) {
+        console.warn('Failed to revoke URL during clearAll:', img.id, e);
+      }
+    });
 
     set({
       images: [],
