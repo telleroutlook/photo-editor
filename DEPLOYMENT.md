@@ -193,7 +193,42 @@ Git Push → Cloudflare 检测 → npm install → npm run build → 部署 dist
 
 ## 方式二：Wrangler CLI 手动部署
 
-适用场景：本地测试、不使用 Git 集成
+适用场景：本地测试、不使用 Git 集成、多账户管理
+
+### ⚠️ 重要：账户 ID 配置
+
+Cloudflare Pages 项目**不支持**在 `wrangler.toml` 中直接配置 `account_id`（与 Workers 不同）。
+
+**正确做法**：使用环境变量 `CLOUDFLARE_ACCOUNT_ID`
+
+```bash
+# 方式 1: 临时设置（单次部署）
+CLOUDFLARE_ACCOUNT_ID="your-account-id" wrangler pages deploy dist --project-name=photo-editor
+
+# 方式 2: 添加到 package.json 脚本（推荐）
+# 在 package.json 中：
+"deploy": "CLOUDFLARE_ACCOUNT_ID=your-account-id wrangler pages deploy dist --project-name=photo-editor"
+
+# 方式 3: 设置全局环境变量（Windows）
+set CLOUDFLARE_ACCOUNT_ID=your-account-id
+wrangler pages deploy dist --project-name=photo-editor
+
+# 方式 3: 设置全局环境变量（macOS/Linux）
+export CLOUDFLARE_ACCOUNT_ID=your-account-id
+wrangler pages deploy dist --project-name=photo-editor
+```
+
+**获取账户 ID**:
+1. 登录 Cloudflare Dashboard
+2. 进入任意项目
+3. 在右侧栏查看 **Account ID** 或从 URL 中获取
+
+**本项目配置示例**:
+```bash
+# package.json
+"deploy": "npm run build:quick && CLOUDFLARE_ACCOUNT_ID=fd70ec11f02dba413166e35ea34bad1f wrangler pages deploy dist --project-name=photo-editor"
+"deploy:prod": "npm run build:quick && CLOUDFLARE_ACCOUNT_ID=fd70ec11f02dba413166e35ea34bad1f wrangler pages deploy dist --project-name=photo-editor --branch=main"
+```
 
 ### 部署命令
 
@@ -532,6 +567,11 @@ export default defineConfig({
 
 ## 更新日志
 
+- **2026-01-11**:
+  - 添加 CLOUDFLARE_ACCOUNT_ID 环境变量配置说明
+  - 添加 `deploy` 和 `deploy:prod` 脚本到 package.json
+  - 说明 Pages 与 Workers 的 account_id 配置差异
+  - 成功部署到生产环境：https://1326d85c.photo-editor-2tz.pages.dev
 - **2025-01-11**: 初始版本，记录 photo-editor 项目部署过程
 - 包含常见问题排查和性能优化建议
 

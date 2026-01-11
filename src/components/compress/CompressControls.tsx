@@ -425,8 +425,8 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
                     max="6"
                     step="1"
                     value={webpMethod}
-                    onInput={(e) => setWebpMethod(parseInt(e.target.value))}
-                    onChange={(e) => setWebpMethod(parseInt(e.target.value))}
+                    onInput={(e) => setWebpMethod(parseInt((e.target as HTMLInputElement).value))}
+                    onChange={(e) => setWebpMethod(parseInt((e.target as HTMLInputElement).value))}
                     disabled={disabled || isProcessing}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
                   />
@@ -448,8 +448,8 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
                     max="100"
                     step="1"
                     value={webpFilterStrength}
-                    onInput={(e) => setWebpFilterStrength(parseInt(e.target.value))}
-                    onChange={(e) => setWebpFilterStrength(parseInt(e.target.value))}
+                    onInput={(e) => setWebpFilterStrength(parseInt((e.target as HTMLInputElement).value))}
+                    onChange={(e) => setWebpFilterStrength(parseInt((e.target as HTMLInputElement).value))}
                     disabled={disabled || isProcessing}
                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
                   />
@@ -465,8 +465,8 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
                       max="100"
                       step="1"
                       value={webpFilterSharpness}
-                      onInput={(e) => setWebpFilterSharpness(parseInt(e.target.value))}
-                      onChange={(e) => setWebpFilterSharpness(parseInt(e.target.value))}
+                      onInput={(e) => setWebpFilterSharpness(parseInt((e.target as HTMLInputElement).value))}
+                      onChange={(e) => setWebpFilterSharpness(parseInt((e.target as HTMLInputElement).value))}
                       disabled={disabled || isProcessing}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
                     />
@@ -479,8 +479,8 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
                       max="100"
                       step="1"
                       value={webpSnsStrength}
-                      onInput={(e) => setWebpSnsStrength(parseInt(e.target.value))}
-                      onChange={(e) => setWebpSnsStrength(parseInt(e.target.value))}
+                      onInput={(e) => setWebpSnsStrength(parseInt((e.target as HTMLInputElement).value))}
+                      onChange={(e) => setWebpSnsStrength(parseInt((e.target as HTMLInputElement).value))}
                       disabled={disabled || isProcessing}
                       className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
                     />

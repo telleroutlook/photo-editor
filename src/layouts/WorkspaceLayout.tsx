@@ -19,6 +19,7 @@ import {
   FileOutput,
   Upload,
   Eraser,
+  Layers,
   Moon,
   Sun
 } from 'lucide-react';
@@ -43,6 +44,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
     { id: 'resize', icon: Maximize2, label: 'Resize' },
     { id: 'compress', icon: FileOutput, label: 'Compress' },
     { id: 'bgremove', icon: Eraser, label: 'Remove BG' },
+    { id: 'batch', icon: Layers, label: 'Batch' },
   ];
 
   return (
@@ -71,7 +73,7 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => setCurrentFeature(item.id as 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove')}
+              onClick={() => setCurrentFeature(item.id as 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove' | 'batch')}
               className={`p-3 rounded-xl transition-all group relative ${
                 currentFeature === item.id
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
@@ -119,7 +121,9 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
         <aside className="w-80 border-l border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
           <div className="p-4 border-b border-zinc-800">
             <h2 className="font-semibold text-sm uppercase tracking-wider text-zinc-400">
-              {currentFeature === 'bgremove' ? 'Background Removal' : currentFeature}
+              {currentFeature === 'bgremove' ? 'Background Removal' :
+               currentFeature === 'batch' ? 'Batch Processing' :
+               currentFeature}
             </h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-zinc-900">

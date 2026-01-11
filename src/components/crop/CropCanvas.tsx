@@ -106,7 +106,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
   // ✅ Store updateCropRect in a ref to break the dependency cycle
   const updateCropRectRef = useRef<(() => void) | null>(null);
-  const updateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCropRectRef = useRef<CropRect | null>(null);
 
   // Define the function using ref values (no dependencies needed)

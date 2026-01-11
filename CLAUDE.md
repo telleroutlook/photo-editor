@@ -12,32 +12,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - No registration required
 - Lightweight and fast (< 2s first paint)
 
-**Current Status**: Design phase - implementation has not started yet. See `WASM-photo-design.md` for complete specifications.
+**Current Status**:
+- ✅ **UI Architecture Implemented** (2026-01-11) - Modern workspace layout with Holy Grail pattern
+- ✅ **WASM Integration Complete** (2026-01-11) - All three modules compiled and functional
+- ✅ **Deployment Configured** - Cloudflare Pages with automated deployment scripts
+- ✅ **Background Removal Integrated** (2026-01-11) - UI and WASM fully connected
+- ✅ **Batch Processing** - Backend ready, UI placeholder implemented
+- 📚 **Documentation**: See `WASM-photo-design.md` for original specs, `UI_REDESIGN_COMPLETE.md` for recent UI changes
 
 ---
 
-## Planned Tech Stack
+## Tech Stack
 
 ### Frontend
-- **Framework**: React
+- **Framework**: React 18 + TypeScript
 - **Styling**: Tailwind CSS
+- **Icons**: Lucide React (modern icon library)
+- **Utilities**: clsx + tailwind-merge (conditional styling)
 - **State Management**: Zustand
 - **Canvas Library**: Fabric.js (for cropping interactions)
 - **Performance**: OffscreenCanvas for parallel processing
 
-### WebAssembly Modules
-The application will use lazy-loaded WASM modules split by function:
+### WebAssembly Modules (Implemented)
+All modules are compiled and integrated via Web Workers:
 
-| Module | Size | Load Timing | Purpose |
-|--------|------|-------------|---------|
-| `core.wasm` | ~150KB | Initial load | Crop, rotate, flip, basic scaling |
-| `compress.wasm` | ~200KB | On demand | High-quality JPEG/WebP encoding |
-| `bgremove.wasm` | ~300KB | On demand | Color threshold, magic wand, GrabCut |
+| Module | Actual Size | Load Timing | Purpose | Status |
+|--------|------------|-------------|---------|--------|
+| `core.wasm` | 55KB | On demand | Crop, rotate, flip, resize | ✅ Active |
+| `compress.wasm` | 172KB | On demand | JPEG/WebP/PNG encoding | ✅ Active |
+| `bgremove.wasm` | 29KB | On demand | Color removal, magic wand, GrabCut | ✅ Active |
+
+**Total WASM size**: 256KB
 
 ### Deployment
 - **Platform**: Cloudflare Pages (free tier)
-- **Build**: Static site with WASM bundles
+- **Build**: Static SPA with lazy-loaded WASM bundles
 - **Performance**: Brotli compression, CDN caching
+- **Deployment**: Git integration + Wrangler CLI scripts
 
 ---
 
@@ -59,39 +70,46 @@ The application will use lazy-loaded WASM modules split by function:
 
 ## Development Workflow
 
-**Note**: Implementation has not started. When beginning development:
+### Available Commands
 
-1. **Initial Setup**
-   ```bash
-   # Create React + TypeScript project
-   npm create vite@latest photo-editor -- --template react-ts
-   cd photo-editor
-   npm install
+```bash
+# Development
+npm run dev              # Start Vite dev server (http://localhost:5173)
 
-   # Install core dependencies
-   npm install fabric zustand
-   npm install -D tailwindcss postcss autoprefixer
-   npx tailwindcss init -p
-   ```
+# Build
+npm run build            # TypeScript check + Vite build
+npm run build:quick      # Vite build only (skip TypeScript check)
+npm run preview          # Preview production build locally
 
-2. **WASM Development**
-   - WASM modules will be written in C/C++ or Rust
-   - Compiled to WASM using Emscripten or wasm-pack
-   - Loaded dynamically via Web Workers
-   - Use SharedArrayBuffer for zero-copy transfers (requires COOP/COEP headers)
+# Deployment (requires CLOUDFLARE_ACCOUNT_ID)
+npm run deploy           # Build and deploy to Cloudflare Pages
+npm run deploy:prod      # Build and deploy to production (main branch)
 
-3. **Testing Strategy**
-   - Unit tests for WASM functions
-   - Integration tests for React components
-   - Performance tests for large images (>10MB)
+# Code Quality
+npm run lint             # Run ESLint
+npm run lint:fix         # Auto-fix ESLint issues
+npm run format           # Format code with Prettier
+```
 
-4. **Build Commands** (to be created)
-   ```bash
-   npm run dev          # Development server
-   npm run build        # Production build
-   npm run preview      # Preview production build
-   npm run test         # Run tests
-   ```
+### WASM Development
+
+WASM modules are written in Rust and compiled with wasm-pack:
+
+```bash
+# Compile core module
+cd wasm-src/core
+wasm-pack build --target web --out-dir ../../public/wasm/core
+
+# Compile compress module
+cd ../compress
+wasm-pack build --target web --out-dir ../../public/wasm/compress
+
+# Compile bgremove module
+cd ../bgremove
+wasm-pack build --target web --out-dir ../../public/wasm/bgremove
+```
+
+**Post-build**: Run `node scripts/fix-worker-files.js` to fix module paths.
 
 ---
 
@@ -104,11 +122,15 @@ The application will use lazy-loaded WASM modules split by function:
 - Lazy-load WASM modules only when needed
 
 ### User Experience Design
-- **4-step workflow**: Upload → Function → Preview → Export
+- **Workspace Layout**: Holy Grail pattern - single-screen desktop experience (no scrolling)
+  - Left sidebar (64px): Tool navigation palette
+  - Center canvas (flexible): Image preview and editing area
+  - Right sidebar (320px): Tool-specific controls and parameters
+  - Bottom filmstrip (128px, optional): Batch file management
 - **Smart defaults**: 80% quality, auto-center subject, 20% tolerance
-- **Progressive complexity**: Show 1 primary control by default, hide advanced options
-- **Instant feedback**: Update preview within 300ms of parameter changes
-- **Undo support**: Ctrl+Z, reset buttons, before/after comparison
+- **Progressive complexity**: Show primary controls by default, advanced options collapsible
+- **Instant feedback**: Tool switching, real-time parameter updates
+- **Dark theme**: Professional zinc color palette (zinc-950/900/800) for photo editing
 
 ### Security & Privacy
 - All processing happens client-side (no server upload)
@@ -118,61 +140,119 @@ The application will use lazy-loaded WASM modules split by function:
 
 ---
 
-## File Structure (Planned)
+## File Structure (Actual)
 
 ```
 photo-editor/
-├── public/              # Static assets
-│   └── wasm/           # Compiled WASM modules
+├── public/
+│   ├── wasm/              # Compiled WASM modules
+│   │   ├── core/          # Core operations (55KB)
+│   │   ├── compress/      # Compression (172KB)
+│   │   └── bgremove/      # Background removal (29KB)
+│   └── fonts/             # Local font files (privacy-first)
 ├── src/
-│   ├── components/     # React components
-│   │   ├── upload/     # File upload (drag-drop, paste)
-│   │   ├── crop/       # Cropping UI (Fabric.js)
-│   │   ├── compress/   # Compression controls
-│   │   └── preview/    # Before/after comparison
-│   ├── workers/        # Web Workers for WASM
-│   ├── store/          # Zustand state management
-│   ├── utils/          # Helper functions
-│   └── types.ts        # TypeScript definitions
-├── wasm-src/           # WASM source code (C/C++ or Rust)
-│   ├── core/           # Basic operations
-│   ├── compress/       # Encoding algorithms
-│   └── bgremove/       # Background removal
-├── .headers            # Cloudflare Pages security headers
-└── wrangler.toml       # Cloudflare configuration
+│   ├── components/
+│   │   ├── upload/        # File upload, FileList, UploadZone
+│   │   ├── crop/          # CropCanvas, CropControls (Fabric.js)
+│   │   ├── compress/      # CompressControls
+│   │   ├── rotate/        # RotateFlipControls
+│   │   ├── resize/        # ResizeControls
+│   │   ├── bgremove/      # BgRemoveControls, ColorRemoval, MagicWand, GrabCutTool
+│   │   ├── batch/         # BatchProgress, BatchExport, FileSelection
+│   │   ├── preview/       # PreviewCanvas (generic preview)
+│   │   └── common/        # PasteHandler, shared components
+│   ├── layouts/           # WorkspaceLayout (Holy Grail pattern)
+│   ├── pages/             # CropTool, CompressTool, RotateFlipTool, ResizeTool
+│   ├── workers/           # Web Workers for WASM
+│   │   ├── coreWorker.ts
+│   │   ├── compressWorker.ts
+│   │   ├── bgremoveWorker.ts
+│   │   └── batchWorker.ts
+│   ├── store/             # Zustand state management
+│   │   ├── appStore.ts    # Global app state
+│   │   └── imageStore.ts  # Image management
+│   ├── hooks/             # React hooks (useCompressWorker, useBgRemoveWorker, etc.)
+│   ├── utils/             # Helper functions, WASM loader
+│   ├── types/             # TypeScript definitions
+│   │   ├── wasm.ts        # WASM interfaces
+│   │   ├── worker.ts      # Worker message types
+│   │   └── batch.ts       # Batch processing types
+│   ├── App.tsx            # Main app component
+│   └── main.tsx           # Entry point
+├── wasm-src/              # Rust WASM source code
+│   ├── core/              # src/lib.rs, crop.rs, rotate.rs, resize.rs
+│   ├── compress/          # src/lib.rs, jpeg.rs, webp.rs, png.rs
+│   └── bgremove/          # src/lib.rs, color_threshold.rs, magic_wand.rs, grabcut.rs
+├── scripts/
+│   └── fix-worker-files.js # Post-build WASM path fixer
+├── docs/                  # Documentation
+│   ├── DEPLOYMENT.md
+│   ├── WASM_INTEGRATION_COMPLETE.md
+│   ├── UI_REDESIGN_COMPLETE.md
+│   └── BATCH_PROCESSING_TEST_GUIDE.md
+├── wrangler.toml          # Cloudflare Pages config
+├── package.json           # Dependencies + deployment scripts
+└── vite.config.ts         # Vite configuration
 ```
 
 ---
 
-## Development Priorities
+## Development Progress & Priorities
 
-### Week 1-2: Framework
-- Set up React + Tailwind project
-- Implement file upload (drag-drop, paste, multi-select)
-- Basic preview and export flow
+### ✅ Completed (2026-01-11)
 
-### Week 3-4: Core Features
-- Cropping tool (Fabric.js)
-- Resize + rotate/flip
-- Integrate core.wasm module
+**Infrastructure**:
+- ✅ React + Vite + TypeScript setup
+- ✅ Tailwind CSS + dark theme
+- ✅ File upload (drag-drop, paste, multi-select)
+- ✅ WorkspaceLayout with Holy Grail pattern
+- ✅ Zustand state management (appStore + imageStore)
 
-### Week 5: Compression
-- Quality slider
-- Target file size mode
-- Format conversion
+**WASM Integration**:
+- ✅ All three WASM modules compiled (core/compress/bgremove)
+- ✅ Web Workers setup for non-blocking processing
+- ✅ Module lazy loading system
 
-### Week 6: Background Removal (Phase 1)
-- Solid color removal
-- Magic wand tool
+**UI Components**:
+- ✅ Left sidebar tool navigation
+- ✅ Right sidebar properties panel
+- ✅ Bottom filmstrip for batch files
+- ✅ PreviewCanvas for generic image display
+- ✅ UploadZone with compact mode
+- ✅ FileList with filmstrip variant
 
-### Week 7: Batch Processing
-- Apply parameters to multiple images
-- ZIP packaging and download
+**Tools**:
+- ✅ Crop tool (CropCanvas with Fabric.js)
+- ✅ Rotate/Flip tool
+- ✅ Resize tool
+- ✅ Compress tool (JPEG/WebP/PNG)
+- ✅ Background Removal tool (Color removal, Magic Wand, GrabCut)
 
-### Week 8: Optimization & Launch
-- Lazy loading, caching
+**Deployment**:
+- ✅ Cloudflare Pages configuration
+- ✅ Deployment scripts in package.json
+- ✅ Production environment live at https://1326d85c.photo-editor-2tz.pages.dev
+
+### 🚧 In Progress
+
+**Batch Processing UI**:
+- ✅ Backend workers implemented
+- 🚧 UI integration (placeholder currently shown)
+
+### 📋 Upcoming
+
+**Enhancements**:
+- Before/after comparison slider
+- Export optimization
+- Image caching strategy
+- Memory management for large files
 - Browser compatibility testing
-- Deploy to Cloudflare Pages
+
+**Phase 3 Features**:
+- Watermarks
+- Filters
+- Collage tools
+- HEIC conversion
 
 ---
 
@@ -232,8 +312,14 @@ When implementing features, reference this document for:
 
 ## Collaboration Notes
 
-- This is a greenfield project - establish patterns early
-- Prefer simpler solutions over abstractions (YAGNI principle)
-- Document any deviations from the design document
-- Performance is critical - measure before optimizing
-- Privacy is the main differentiator - never compromise on client-side processing
+- **Project Status**: Active development - UI architecture established, tool integration ongoing
+- **Code Style**: TypeScript strict mode, Tailwind utilities, component-based architecture
+- **State Management**: Zustand stores for global state (appStore) and image management (imageStore)
+- **Component Patterns**:
+  - Layout components in `src/layouts/`
+  - Feature pages in `src/pages/`
+  - Reusable UI components in `src/components/`
+  - Web Workers for heavy computations
+- **Performance is critical**: All WASM operations run in Workers, preview uses downsampling
+- **Privacy is the main differentiator**: Never compromise on client-side processing
+- **Document changes**: Update relevant .md files when making architectural changes

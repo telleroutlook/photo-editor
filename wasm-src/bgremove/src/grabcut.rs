@@ -300,7 +300,6 @@ impl Dinic {
 }
 
 /// GrabCut segmentation algorithm
-#[wasm_bindgen]
 pub fn grabcut_segment(
     input: &[u8],
     width: u32,

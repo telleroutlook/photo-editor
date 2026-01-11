@@ -40,7 +40,7 @@ async function loadWasmModule(): Promise<CompressWasmApi> {
     console.log('✅ [CompressWorker] Compress WASM module loaded successfully');
     console.log('📦 [CompressWorker] Module exports:', Object.keys(wasmModule));
 
-    return wasmModule as CompressWasmApi;
+    return wasmModule as unknown as CompressWasmApi;
   } catch (error) {
     console.error('❌ [CompressWorker] Failed to load Compress WASM module:', error);
     console.error('🔍 [CompressWorker] Error details:', {

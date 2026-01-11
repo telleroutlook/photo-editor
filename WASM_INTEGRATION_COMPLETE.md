@@ -1,5 +1,10 @@
 # WASM 模块集成完成 ✅
 
+> **🎨 UI 架构更新 (2026-01-11)**:
+> WASM 模块现已集成到新的**工作区布局（Holy Grail Pattern）**中。
+> 所有 WASM 操作继续通过 Web Workers 运行，现在可以在单屏工作区内实时预览和调整参数。
+> 详见 [UI_REDESIGN_COMPLETE.md](./UI_REDESIGN_COMPLETE.md)
+
 ## 概述
 
 所有三个 WASM 模块已成功编译并集成到项目中：
@@ -307,18 +312,30 @@ const compressImage = async () => {
 
 ## 下一步
 
-### 立即可用
-- ✅ WASM 模块已编译
+### ✅ 已完成 (2026-01-11)
+- ✅ WASM 模块已编译并部署
 - ✅ Web Workers 已更新
-- ✅ 测试页面已创建
-- ✅ 开发服务器运行中
+- ✅ 新 UI 工作区布局已实现
+- ✅ 开发服务器运行中 (http://localhost:5173/)
+- ✅ 生产环境已部署 (https://1326d85c.photo-editor-2tz.pages.dev)
 
-### 测试步骤
-1. 打开 http://localhost:5174/
-2. 点击 "🚀 Load All Modules"
-3. 查看所有模块成功加载
-4. 点击 "🧪 Run Compression Test"
-5. 验证压缩功能正常
+### 🚧 进行中
+- 🚧 工具控制组件重构（适配侧边栏布局）
+  - CropControls - 裁剪参数面板
+  - ResizeControls - 调整大小控制
+  - CompressControls - 压缩质量设置
+  - RotateFlipControls - 旋转翻转操作
+
+### 测试 WASM 功能
+**本地开发**:
+1. 打开 http://localhost:5173/
+2. 上传测试图片
+3. 点击左侧工具栏切换不同功能
+4. 在右侧面板调整参数（待工具重构完成）
+5. 查看中心画布实时预览
+
+**生产环境**:
+访问 https://1326d85c.photo-editor-2tz.pages.dev
 
 ### 未来优化
 - [ ] 添加更多功能测试 (crop, rotate, resize)

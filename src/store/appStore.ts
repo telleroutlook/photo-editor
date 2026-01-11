@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 
-type Feature = 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove' | 'export';
+type Feature = 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove' | 'batch' | 'export';
 
 interface AppState {
   // UI State

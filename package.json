@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node scripts/fix-worker-files.js",
+    "build:quick": "vite build && node scripts/fix-worker-files.js",
     "preview": "vite preview",
+    "deploy": "npm run build:quick && CLOUDFLARE_ACCOUNT_ID=fd70ec11f02dba413166e35ea34bad1f wrangler pages deploy dist --project-name=photo-editor",
+    "deploy:prod": "npm run build:quick && CLOUDFLARE_ACCOUNT_ID=fd70ec11f02dba413166e35ea34bad1f wrangler pages deploy dist --project-name=photo-editor --branch=main",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
