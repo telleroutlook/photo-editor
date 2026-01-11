@@ -23,6 +23,7 @@ interface CompressResult {
 interface UseCompressWorkerReturn {
   compressJpeg: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
   compressWebp: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
+  compressPng: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
   compressToSize: (
     imageData: Uint8Array,
     width: number,

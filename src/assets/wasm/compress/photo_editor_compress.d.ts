@@ -34,6 +34,26 @@ export function compress_jpeg(input: Uint8Array, width: number, height: number, 
 
 /**
  *
+ * * Compress RGBA image data to PNG format
+ * *
+ * * Note: PNG is lossless compression. The quality parameter controls
+ * * compression level (Fast/Default/High/Best) for trade-off between size and speed.
+ * *
+ * * # Arguments
+ * * * `input` - RGBA image data (4 bytes per pixel, row-major order)
+ * * * `width` - Image width in pixels
+ * * * `height` - Image height in pixels
+ * * * `quality` - PNG compression level hint (1-100, maps to compression type)
+ * * * `output` - Output buffer (pre-allocated, same size as input)
+ * *
+ * * # Returns
+ * * Number of bytes written to output buffer
+ * 
+ */
+export function compress_png(input: Uint8Array, width: number, height: number, quality: number, output: Uint8Array): number;
+
+/**
+ *
  * * Compress image to target file size using binary search
  * *
  * * Uses binary search to find the optimal quality parameter that
@@ -56,9 +76,6 @@ export function compress_to_size(input: Uint8Array, width: number, height: numbe
 /**
  *
  * * Compress RGBA image data to WebP format
- * *
- * * Note: WebP encoding is not yet implemented in the image crate.
- * * This function falls back to JPEG compression for now.
  * *
  * * # Arguments
  * * * `input` - RGBA image data (4 bytes per pixel, row-major order)
@@ -83,6 +100,7 @@ export interface InitOutput {
   readonly __wbg_set_compressionresult_quality: (a: number, b: number) => void;
   readonly __wbg_set_compressionresult_size: (a: number, b: number) => void;
   readonly compress_jpeg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
+  readonly compress_png: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
   readonly compress_to_size: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: any) => number;
   readonly compress_webp: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
   readonly __wbindgen_externrefs: WebAssembly.Table;

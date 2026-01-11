@@ -138,6 +138,7 @@ export interface CoreWasmApi {
 /**
  * Compress WASM module API
  * Provides high-quality image compression functions
+ * Note: These are synchronous functions (not async/Promise)
  */
 export interface CompressWasmApi {
   /**
@@ -155,14 +156,14 @@ export interface CompressWasmApi {
     height: number,
     quality: number,
     output: Uint8Array
-  ) => Promise<number>;
+  ) => number;
 
   /**
    * Compress image as WebP
    * @param input - Input image data (RGBA format)
    * @param width - Image width in pixels
    * @param height - Image height in pixels
-   * @param quality - WebP quality (0.0-1.0)
+   * @param quality - WebP quality (1-100)
    * @param output - Output buffer for WebP data
    * @returns Number of bytes written to output
    */
@@ -172,7 +173,24 @@ export interface CompressWasmApi {
     height: number,
     quality: number,
     output: Uint8Array
-  ) => Promise<number>;
+  ) => number;
+
+  /**
+   * Compress image as PNG
+   * @param input - Input image data (RGBA format)
+   * @param width - Image width in pixels
+   * @param height - Image height in pixels
+   * @param quality - PNG compression level (1-100, maps to Fast/Default/Best)
+   * @param output - Output buffer for PNG data
+   * @returns Number of bytes written to output
+   */
+  compress_png: (
+    input: Uint8Array,
+    width: number,
+    height: number,
+    quality: number,
+    output: Uint8Array
+  ) => number;
 
   /**
    * Compress image to target file size using binary search
@@ -180,7 +198,7 @@ export interface CompressWasmApi {
    * @param width - Image width in pixels
    * @param height - Image height in pixels
    * @param targetSize - Target file size in bytes
-   * @param format - Compression format (JPEG/WebP)
+   * @param format - Compression format enum (Jpeg=0, WebP=1, Png=2)
    * @param output - Output buffer for compressed data
    * @returns Object with actual size and quality used
    */
@@ -189,9 +207,9 @@ export interface CompressWasmApi {
     width: number,
     height: number,
     targetSize: number,
-    format: CompressionFormat,
+    format: number,
     output: Uint8Array
-  ) => Promise<{ size: number; quality: number }>;
+  ) => { size: number; quality: number };
 }
 
 // ============================================================================

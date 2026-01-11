@@ -120,8 +120,8 @@ async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
     // Allocate output buffer (start with same size)
     const output = new Uint8Array(input.length);
 
-    // Call WASM function
-    const compressedSize = await wasmModule.compress_jpeg(
+    // Call WASM function (synchronous)
+    const compressedSize = wasmModule.compress_jpeg(
       input,
       width,
       height,
@@ -202,8 +202,8 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
 
     console.log('📦 [CompressWorker] Calling WASM compress_webp...');
 
-    // Call WASM function
-    const compressedSize = await wasmModule.compress_webp(
+    // Call WASM function (synchronous)
+    const compressedSize = wasmModule.compress_webp(
       input,
       width,
       height,
@@ -332,8 +332,8 @@ async function handleCompressPng(message: WorkerMessage<any>): Promise<void> {
 
     console.log('📦 [CompressWorker] Calling WASM compress_png...');
 
-    // Call WASM function
-    const compressedSize = await wasmModule.compress_png(
+    // Call WASM function (synchronous)
+    const compressedSize = wasmModule.compress_png(
       input,
       width,
       height,
@@ -462,8 +462,8 @@ async function handleCompressToSize(message: WorkerMessage<any>): Promise<void> 
 
     const wasmFormat = formatMap[format] || 0;
 
-    // Call WASM compress_to_size function
-    const result = await wasmModule.compress_to_size(
+    // Call WASM compress_to_size function (synchronous)
+    const result = wasmModule.compress_to_size(
       input,
       width,
       height,
