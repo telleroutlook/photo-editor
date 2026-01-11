@@ -1,0 +1,15 @@
+{
+  "name": "photo-editor-bgremove",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "photo_editor_bgremove_bg.wasm",
+    "photo_editor_bgremove.js",
+    "photo_editor_bgremove.d.ts"
+  ],
+  "main": "photo_editor_bgremove.js",
+  "types": "photo_editor_bgremove.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

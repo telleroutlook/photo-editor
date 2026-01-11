@@ -172,13 +172,27 @@ export function GrabCutTool({ imageData, width, height, onRemoveComplete }: Grab
       alert('Please draw a rectangle around the subject first');
       return;
     }
-    // Convert Uint8Array to ArrayBuffer (avoid SharedArrayBuffer)
-    const arrayBuffer = new ArrayBuffer(segmentationMask.length);
-    new Uint8Array(arrayBuffer).set(segmentationMask);
-    onRemoveComplete(arrayBuffer, width, height);
-    setSegmentationMask(null);
-    setRect(null);
-  }, [segmentationMask, width, height, onRemoveComplete]);
+
+    try {
+      // Apply mask to original image data (keep foreground, remove background)
+      const resultImageData = new Uint8ClampedArray(imageData);
+
+      // Set background pixels (mask value < 128) to transparent
+      for (let i = 0; i < segmentationMask.length; i++) {
+        if (segmentationMask[i] < 128) {  // Background pixel
+          const idx = i * 4;
+          resultImageData[idx + 3] = 0;  // Set alpha to 0 (transparent)
+        }
+      }
+
+      onRemoveComplete(resultImageData.buffer, width, height);
+      setSegmentationMask(null);
+      setRect(null);
+    } catch (error) {
+      console.error('Error removing background:', error);
+      alert(`Error removing background: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, [segmentationMask, imageData, width, height, onRemoveComplete]);
 
   // Reset
   const handleReset = useCallback(() => {

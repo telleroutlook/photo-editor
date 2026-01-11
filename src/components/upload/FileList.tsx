@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useImageStore } from '../../store/imageStore';
+import { useAppStore } from '../../store/appStore';
 import { formatFileSize } from '../../utils/fileUtils';
 import { X, Check } from 'lucide-react';
 
@@ -9,6 +10,97 @@ interface FileListProps {
 
 export const FileList: React.FC<FileListProps> = ({ variant = 'default' }) => {
   const { images, removeImage, selectedImageId, selectImage } = useImageStore();
+  const {
+    currentFeature,
+    bgRemovePreviewUrl,
+    bgRemovePreviewData,
+    bgRemovePreviewWidth,
+    bgRemovePreviewHeight,
+    setBgRemovePreviewUrl
+  } = useAppStore();
+
+  const previewUrlRef = useRef<string | null>(null);
+
+  // Clear preview when switching tools or images
+  useEffect(() => {
+    if (currentFeature !== 'bgremove') {
+      // Revoke and clear URL when leaving bgremove mode
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+      setBgRemovePreviewUrl(null);
+    }
+  }, [currentFeature, selectedImageId, setBgRemovePreviewUrl]);
+
+  // Generate preview URL when preview data changes
+  useEffect(() => {
+    if (bgRemovePreviewData && bgRemovePreviewWidth && bgRemovePreviewHeight) {
+      console.log('🎨 [FileList] Generating preview URL from data:', {
+        dataSize: bgRemovePreviewData.length,
+        previewWidth: bgRemovePreviewWidth,
+        previewHeight: bgRemovePreviewHeight,
+        hasExistingUrl: !!previewUrlRef.current
+      });
+
+      // Revoke old URL if exists
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+
+      // Create canvas to generate proper PNG
+      const canvas = document.createElement('canvas');
+      canvas.width = bgRemovePreviewWidth;
+      canvas.height = bgRemovePreviewHeight;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        console.error('❌ [FileList] Failed to get canvas context');
+        return;
+      }
+
+      // Put image data on canvas
+      const imageData = new ImageData(
+        new Uint8ClampedArray(bgRemovePreviewData),
+        bgRemovePreviewWidth,
+        bgRemovePreviewHeight
+      );
+      ctx.putImageData(imageData, 0, 0);
+
+      // Convert canvas to blob and generate URL
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          console.error('❌ [FileList] Failed to create blob');
+          return;
+        }
+
+        const url = URL.createObjectURL(blob);
+        previewUrlRef.current = url;
+        setBgRemovePreviewUrl(url);
+
+        console.log('✅ [FileList] Preview URL generated:', url, {
+          blobSize: blob.size,
+          blobType: blob.type
+        });
+      }, 'image/png');
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
+  }, [bgRemovePreviewData, bgRemovePreviewWidth, bgRemovePreviewHeight, setBgRemovePreviewUrl]);
+
+  console.log('📊 [FileList] Render state:', {
+    variant,
+    currentFeature,
+    selectedImageId,
+    bgRemovePreviewUrl: bgRemovePreviewUrl ? 'URL exists' : null,
+    imageCount: images.length
+  });
 
   if (images.length === 0) {
     return null;
@@ -19,22 +111,78 @@ export const FileList: React.FC<FileListProps> = ({ variant = 'default' }) => {
     return (
       <div className="h-full w-full flex items-center px-4 overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
         <div className="flex gap-3 py-3">
-          {images.map((image) => (
-            <div
-              key={image.id}
-              onClick={() => selectImage(image.id)}
-              className={`
-                group relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200
-                ${selectedImageId === image.id
-                  ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-lg shadow-blue-900/50'
-                  : 'border-zinc-700 hover:border-zinc-600'}
-              `}
-            >
-              <img
-                src={image.url}
-                alt={image.file.name}
-                className="w-full h-full object-cover"
-              />
+          {images.map((image) => {
+            // Use preview URL if bgremove is active, image is selected, and preview exists
+            const displayUrl = (currentFeature === 'bgremove' && selectedImageId === image.id && bgRemovePreviewUrl)
+              ? bgRemovePreviewUrl
+              : image.url;
+
+            if (currentFeature === 'bgremove' && selectedImageId === image.id) {
+              console.log('🖼️ [FileList] Selected image in bgremove mode:', {
+                imageId: image.id,
+                hasPreviewUrl: !!bgRemovePreviewUrl,
+                usingPreviewUrl: displayUrl === bgRemovePreviewUrl
+              });
+            }
+
+            return (
+              <div
+                key={image.id}
+                onClick={() => selectImage(image.id)}
+                className={`
+                  group relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200
+                  ${selectedImageId === image.id
+                    ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-lg shadow-blue-900/50'
+                    : 'border-zinc-700 hover:border-zinc-600'}
+                  ${currentFeature === 'bgremove' && selectedImageId === image.id && bgRemovePreviewUrl
+                    ? 'ring-4 ring-green-500/30'
+                    : ''}
+                `}
+                style={
+                  currentFeature === 'bgremove' && selectedImageId === image.id && bgRemovePreviewUrl
+                    ? {
+                        backgroundImage: 'conic-gradient(#666 25%, #999 0 50%, #666 0 75%, #999 0)',
+                        backgroundSize: '12px 12px'
+                      }
+                    : undefined
+                }
+              >
+                <img
+                  src={displayUrl}
+                  alt={image.file.name}
+                  className="w-full h-full object-cover"
+                  onLoad={(e) => {
+                    if (currentFeature === 'bgremove' && selectedImageId === image.id && bgRemovePreviewUrl) {
+                      console.log('✅ [FileList] Preview image loaded successfully:', {
+                        url: displayUrl,
+                        displayWidth: e.currentTarget.naturalWidth,
+                        displayHeight: e.currentTarget.naturalHeight,
+                        usingPreview: displayUrl === bgRemovePreviewUrl
+                      });
+
+                      // Verify transparency by reading center pixel
+                      const canvas = document.createElement('canvas');
+                      canvas.width = e.currentTarget.naturalWidth;
+                      canvas.height = e.currentTarget.naturalHeight;
+                      const ctx = canvas.getContext('2d');
+                      if (ctx) {
+                        ctx.drawImage(e.currentTarget, 0, 0);
+                        const centerPixel = ctx.getImageData(
+                          Math.floor(e.currentTarget.naturalWidth / 2),
+                          Math.floor(e.currentTarget.naturalHeight / 2),
+                          1, 1
+                        ).data;
+                        console.log('🔍 [FileList] Center pixel RGBA:', centerPixel, 'Alpha =', centerPixel[3]);
+                      }
+                    }
+                  }}
+                  onError={(e) => {
+                    console.error('❌ [FileList] Failed to load preview image:', {
+                      url: displayUrl,
+                      error: e
+                    });
+                  }}
+                />
 
               {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
@@ -65,7 +213,8 @@ export const FileList: React.FC<FileListProps> = ({ variant = 'default' }) => {
                 <p className="truncate font-medium leading-tight">{image.file.name}</p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );

@@ -1,9 +1,8 @@
 /**
  * Background Removal Components
- * Three-tier background removal system
+ * Two-tier background removal system (Magic Wand + GrabCut)
  */
 
-export { ColorRemoval } from './ColorRemoval';
 export { MagicWand } from './MagicWand';
 export { GrabCutTool } from './GrabCutTool';
 export { BgRemoveControls } from './BgRemoveControls';

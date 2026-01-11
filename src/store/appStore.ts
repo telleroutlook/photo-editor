@@ -6,12 +6,27 @@
 import { create } from 'zustand';
 
 type Feature = 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove' | 'batch' | 'export';
+type BgRemoveMethod = 'magicwand' | 'grabcut';
 
 interface AppState {
   // UI State
   currentFeature: Feature;
   sidebarOpen: boolean;
   darkMode: boolean;
+
+  // Background Removal State
+  bgRemoveMethod: BgRemoveMethod;
+  bgRemoveMagicWandActive: boolean;  // Activate magic wand selection on PreviewCanvas
+  bgRemoveGrabCutActive: boolean;    // Activate grabcut rectangle drawing on PreviewCanvas
+  bgRemoveGrabCutRect: { x: number; y: number; w: number; h: number } | null;
+  bgRemoveSelectionMask: Uint8Array | null;  // Store selection mask for preview
+  bgRemoveTolerance: number;  // Magic wand tolerance
+  bgRemoveConnected: boolean;  // Magic wand connected mode
+  bgRemoveIterations: number;  // GrabCut iterations
+  bgRemovePreviewData: Uint8Array | null;
+  bgRemovePreviewUrl: string | null;
+  bgRemovePreviewWidth: number | null;  // Preview image width (scaled)
+  bgRemovePreviewHeight: number | null;  // Preview image height (scaled)
 
   // WASM Module Loading Status
   wasmModulesLoaded: {
@@ -34,6 +49,19 @@ interface AppState {
   toggleDarkMode: () => void;
   setDarkMode: (dark: boolean) => void;
 
+  // Background Removal Actions
+  setBgRemoveMethod: (method: BgRemoveMethod) => void;
+  setBgRemoveMagicWandActive: (active: boolean) => void;
+  setBgRemoveGrabCutActive: (active: boolean) => void;
+  setBgRemoveGrabCutRect: (rect: { x: number; y: number; w: number; h: number } | null) => void;
+  setBgRemoveSelectionMask: (mask: Uint8Array | null) => void;
+  setBgRemoveTolerance: (tolerance: number) => void;
+  setBgRemoveConnected: (connected: boolean) => void;
+  setBgRemoveIterations: (iterations: number) => void;
+  setBgRemovePreviewData: (data: Uint8Array | null) => void;
+  setBgRemovePreviewUrl: (url: string | null) => void;
+  setBgRemovePreviewSize: (width: number | null, height: number | null) => void;
+
   // WASM Module Management
   setWasmModuleLoaded: (module: keyof AppState['wasmModulesLoaded']) => void;
   resetWasmModules: () => void;
@@ -51,6 +79,20 @@ export const useAppStore = create<AppState>((set) => ({
   currentFeature: 'upload',
   sidebarOpen: true,
   darkMode: true, // Dark mode by default for photo editing
+
+  // Background Removal State
+  bgRemoveMethod: 'magicwand',
+  bgRemoveMagicWandActive: false,
+  bgRemoveGrabCutActive: false,
+  bgRemoveGrabCutRect: null,
+  bgRemoveSelectionMask: null,
+  bgRemoveTolerance: 15,
+  bgRemoveConnected: true,
+  bgRemoveIterations: 5,
+  bgRemovePreviewData: null,
+  bgRemovePreviewUrl: null,
+  bgRemovePreviewWidth: null,
+  bgRemovePreviewHeight: null,
 
   wasmModulesLoaded: {
     core: false,
@@ -116,6 +158,83 @@ export const useAppStore = create<AppState>((set) => ({
       }
       return { darkMode: dark };
     });
+  },
+
+  /**
+   * Background Removal - Set method
+   */
+  setBgRemoveMethod: (method: BgRemoveMethod) => {
+    set({ bgRemoveMethod: method });
+  },
+
+  /**
+   * Background Removal - Set magic wand active state
+   */
+  setBgRemoveMagicWandActive: (active: boolean) => {
+    set({ bgRemoveMagicWandActive: active });
+  },
+
+  /**
+   * Background Removal - Set grabcut active state
+   */
+  setBgRemoveGrabCutActive: (active: boolean) => {
+    set({ bgRemoveGrabCutActive: active });
+  },
+
+  /**
+   * Background Removal - Set grabcut rectangle
+   */
+  setBgRemoveGrabCutRect: (rect: { x: number; y: number; w: number; h: number } | null) => {
+    set({ bgRemoveGrabCutRect: rect });
+  },
+
+  /**
+   * Background Removal - Set selection mask
+   */
+  setBgRemoveSelectionMask: (mask: Uint8Array | null) => {
+    set({ bgRemoveSelectionMask: mask });
+  },
+
+  /**
+   * Background Removal - Set tolerance
+   */
+  setBgRemoveTolerance: (tolerance: number) => {
+    set({ bgRemoveTolerance: tolerance });
+  },
+
+  /**
+   * Background Removal - Set connected mode
+   */
+  setBgRemoveConnected: (connected: boolean) => {
+    set({ bgRemoveConnected: connected });
+  },
+
+  /**
+   * Background Removal - Set iterations
+   */
+  setBgRemoveIterations: (iterations: number) => {
+    set({ bgRemoveIterations: iterations });
+  },
+
+  /**
+   * Background Removal - Set preview image data
+   */
+  setBgRemovePreviewData: (data: Uint8Array | null) => {
+    set({ bgRemovePreviewData: data });
+  },
+
+  /**
+   * Set the preview URL for background removal
+   */
+  setBgRemovePreviewUrl: (url: string | null) => {
+    set({ bgRemovePreviewUrl: url });
+  },
+
+  /**
+   * Set the preview dimensions for background removal
+   */
+  setBgRemovePreviewSize: (width: number | null, height: number | null) => {
+    set({ bgRemovePreviewWidth: width, bgRemovePreviewHeight: height });
   },
 
   /**

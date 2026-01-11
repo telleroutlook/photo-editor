@@ -94,11 +94,22 @@ export function MagicWand({ imageData, width, height, onRemoveComplete }: MagicW
     }
 
     try {
-      const result = await magicWandSelect(imageData, width, height, seedPoint.x, seedPoint.y, tolerance, connected);
-      onRemoveComplete(result.mask.buffer as ArrayBuffer, width, height);
+      // Apply mask to original image data
+      const resultImageData = new Uint8ClampedArray(imageData);
+
+      // Set selected pixels to transparent
+      for (let i = 0; i < selectionMask.length; i++) {
+        if (selectionMask[i] > 128) {  // Selected pixel
+          const idx = i * 4;
+          resultImageData[idx + 3] = 0;  // Set alpha to 0 (transparent)
+        }
+      }
+
+      onRemoveComplete(resultImageData.buffer, width, height);
       setSelectionMask(null);
       setSeedPoint(null);
     } catch (error) {
+      console.error('Error removing background:', error);
       alert(`Error removing background: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [imageData, width, height, seedPoint, tolerance, connected, magicWandSelect, onRemoveComplete, initialized, selectionMask]);

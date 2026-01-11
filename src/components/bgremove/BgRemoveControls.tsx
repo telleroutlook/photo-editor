@@ -1,14 +1,16 @@
 /**
  * BgRemoveControls.tsx - Background Removal Control Panel
  * Tabbed interface for selecting background removal method
+ * All tools use main PreviewCanvas for interaction
  */
 
-import { useState } from 'react';
-import { ColorRemoval } from './ColorRemoval';
-import { MagicWand } from './MagicWand';
-import { GrabCutTool } from './GrabCutTool';
+import { useState, useCallback } from 'react';
+import { useAppStore } from '../../store/appStore';
+import { useBgRemoveWorker } from '../../hooks/useBgRemoveWorker';
+import { MagicWandSimple } from './MagicWandSimple';
+import { GrabCutSimple } from './GrabCutSimple';
 
-type BgRemoveMethod = 'color' | 'magicwand' | 'grabcut';
+type BgRemoveMethod = 'magicwand' | 'grabcut';
 
 interface BgRemoveControlsProps {
   imageData: Uint8Array;
@@ -18,7 +20,65 @@ interface BgRemoveControlsProps {
 }
 
 export function BgRemoveControls({ imageData, width, height, onRemoveComplete }: BgRemoveControlsProps) {
-  const [activeMethod, setActiveMethod] = useState<BgRemoveMethod>('color');
+  const { bgRemoveMethod, setBgRemoveMethod, bgRemovePreviewUrl } = useAppStore();
+  const { magicWandSelect, grabCutSegment, loading, initialized } = useBgRemoveWorker();
+  const [processing, setProcessing] = useState(false);
+
+  // Handle Apply button for both tools
+  const handleApply = useCallback(async () => {
+    if (!initialized || processing) return;
+
+    const {
+      bgRemoveSelectionMask,
+      bgRemoveMethod: method,
+      bgRemoveTolerance: tolerance,
+      bgRemoveConnected: connected,
+      bgRemoveIterations: iterations,
+    } = useAppStore.getState();
+
+    if (!bgRemoveSelectionMask) {
+      alert(`Please make a selection first using ${method === 'magicwand' ? 'Magic Wand' : 'GrabCut'}`);
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      let resultImageData: Uint8ClampedArray;
+
+      if (method === 'magicwand') {
+        // For Magic Wand, the mask indicates selected pixels (to be removed)
+        resultImageData = new Uint8ClampedArray(imageData);
+        for (let i = 0; i < bgRemoveSelectionMask.length; i++) {
+          if (bgRemoveSelectionMask[i] > 128) {  // Selected pixel → make transparent
+            const idx = i * 4;
+            resultImageData[idx + 3] = 0;  // Set alpha to 0
+          }
+        }
+      } else {
+        // For GrabCut, mask < 128 means background (to be removed)
+        resultImageData = new Uint8ClampedArray(imageData);
+        for (let i = 0; i < bgRemoveSelectionMask.length; i++) {
+          if (bgRemoveSelectionMask[i] < 128) {  // Background pixel → make transparent
+            const idx = i * 4;
+            resultImageData[idx + 3] = 0;  // Set alpha to 0
+          }
+        }
+      }
+
+      // Convert to regular ArrayBuffer (not SharedArrayBuffer)
+      const arrayBuffer = new ArrayBuffer(resultImageData.byteLength);
+      new Uint8Array(arrayBuffer).set(new Uint8Array(resultImageData.buffer));
+      onRemoveComplete(arrayBuffer, width, height);
+
+      // Clear selection after applying
+      useAppStore.getState().setBgRemoveSelectionMask(null);
+    } catch (error) {
+      console.error('Error applying background removal:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setProcessing(false);
+    }
+  }, [imageData, width, height, onRemoveComplete, initialized, processing]);
 
   return (
     <div className="space-y-4">
@@ -27,72 +87,67 @@ export function BgRemoveControls({ imageData, width, height, onRemoveComplete }:
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex -mb-px">
             <button
-              onClick={() => setActiveMethod('color')}
+              onClick={() => setBgRemoveMethod('magicwand')}
+              title="Click to select similar colored areas"
               className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeMethod === 'color'
+                bgRemoveMethod === 'magicwand'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
-              Color Removal
+              🪄 Magic Wand
             </button>
             <button
-              onClick={() => setActiveMethod('magicwand')}
+              onClick={() => setBgRemoveMethod('grabcut')}
+              title="Draw rectangle, AI separates foreground from background"
               className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeMethod === 'magicwand'
+                bgRemoveMethod === 'grabcut'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
               }`}
             >
-              Magic Wand
-            </button>
-            <button
-              onClick={() => setActiveMethod('grabcut')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeMethod === 'grabcut'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              GrabCut
+              🤖 GrabCut
             </button>
           </nav>
-        </div>
-
-        {/* Method Description */}
-        <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-          {activeMethod === 'color' && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Color Removal:</strong> Best for solid color backgrounds (green screens, white walls).
-              Click on the background color to select it, then adjust tolerance.
-            </p>
-          )}
-          {activeMethod === 'magicwand' && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Magic Wand:</strong> Select areas by clicking. Use connected mode for contiguous regions
-              or global mode to select all similar colors. Good for simple backgrounds.
-            </p>
-          )}
-          {activeMethod === 'grabcut' && (
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>GrabCut:</strong> Advanced AI-based segmentation. Draw a rectangle around the subject
-              and the algorithm will separate foreground from background. Best for complex scenes.
-            </p>
-          )}
         </div>
       </div>
 
       {/* Active Method Component */}
       <div>
-        {activeMethod === 'color' && (
-          <ColorRemoval imageData={imageData} width={width} height={height} onRemoveComplete={onRemoveComplete} />
+        {bgRemoveMethod === 'magicwand' && (
+          <MagicWandSimple onSelectionComplete={handleApply} />
         )}
-        {activeMethod === 'magicwand' && (
-          <MagicWand imageData={imageData} width={width} height={height} onRemoveComplete={onRemoveComplete} />
+        {bgRemoveMethod === 'grabcut' && (
+          <GrabCutSimple onSelectionComplete={handleApply} />
         )}
-        {activeMethod === 'grabcut' && (
-          <GrabCutTool imageData={imageData} width={width} height={height} onRemoveComplete={onRemoveComplete} />
-        )}
+      </div>
+
+      {/* Preview Box */}
+      {bgRemovePreviewUrl && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm">
+          <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-green-500/50 shadow-lg"
+               style={{
+                 backgroundImage: 'conic-gradient(#666 25%, #999 0 50%, #666 0 75%, #999 0)',
+                 backgroundSize: '16px 16px'
+               }}>
+            <img
+              src={bgRemovePreviewUrl}
+              alt="Preview"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Apply Button (Shared) */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm">
+        <button
+          onClick={handleApply}
+          disabled={!useAppStore.getState().bgRemoveSelectionMask || loading || processing || !initialized}
+          className="w-full px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+        >
+          {processing || loading ? 'Processing...' : '✅ Apply'}
+        </button>
       </div>
     </div>
   );

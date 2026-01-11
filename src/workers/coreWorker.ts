@@ -24,7 +24,7 @@ async function initWasm(): Promise<void> {
 
     // Dynamically import the compiled WASM module
     const wasmUrl = new URL('/wasm/core/photo_editor_core.js', import.meta.url);
-    const loadedModule = await import(wasmUrl.href);
+    const loadedModule = await import(/* @vite-ignore */ wasmUrl.href);
 
     // Initialize the WASM module
     await loadedModule.default();

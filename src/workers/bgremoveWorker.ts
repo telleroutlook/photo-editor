@@ -7,9 +7,31 @@
 import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
 import type { BgRemoveWasmApi } from '../types';
 
+// Worker startup log
+console.log('👋 [BgRemoveWorker] Worker script loaded');
+
 // Worker state
 let wasmModule: BgRemoveWasmApi | null = null;
 let initialized = false;
+
+// Global error handler
+self.onerror = (event: string | Event) => {
+  if (typeof event === 'string') {
+    console.error('❌ [BgRemoveWorker] Global error:', event);
+  } else if (event instanceof ErrorEvent) {
+    console.error('❌ [BgRemoveWorker] Global error:', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error,
+      stack: event.error?.stack
+    });
+  } else {
+    console.error('❌ [BgRemoveWorker] Unknown error:', event);
+  }
+  return false;
+};
 
 /**
  * Initialize WASM module
@@ -22,25 +44,21 @@ async function initWasm(): Promise<void> {
   try {
     console.log('🔄 [BgRemoveWorker] Loading BgRemove WASM module...');
 
-    // Dynamically import the compiled WASM module from public directory
-    // Note: In production, public/ is served from root, so path is /wasm/...
-    const wasmPath = '/wasm/bgremove/photo_editor_bgremove.js';
-    console.log('📦 [BgRemoveWorker] Import path:', wasmPath);
-
-    // Use dynamic import with absolute URL for production compatibility
-    const wasmUrl = new URL(wasmPath, self.location.origin);
-    const wasm = await import(/* @vite-ignore */ wasmUrl.href);
+    // Import the WASM glue code from src/assets
+    // Using relative path for proper Vite module resolution
+    console.log('📦 [BgRemoveWorker] Import path:', '../assets/wasm/bgremove/photo_editor_bgremove.js');
+    const loadedModule = await import('../assets/wasm/bgremove/photo_editor_bgremove.js');
 
     console.log('📚 [BgRemoveWorker] WASM JS file loaded, initializing...');
 
-    // Initialize the WASM module
-    await wasm.default();
+    // Initialize the WASM module (this loads the .wasm binary)
+    await loadedModule.default();
 
     // Store the initialized module
-    wasmModule = wasm as unknown as BgRemoveWasmApi;
+    wasmModule = loadedModule as unknown as BgRemoveWasmApi;
 
     console.log('✅ [BgRemoveWorker] BgRemove WASM module loaded successfully');
-    console.log('📦 [BgRemoveWorker] Module exports:', Object.keys(wasm));
+    console.log('📦 [BgRemoveWorker] Module exports:', Object.keys(loadedModule));
 
     initialized = true;
 
