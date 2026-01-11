@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 
-type Feature = 'upload' | 'crop' | 'resize' | 'compress' | 'bgremove' | 'export';
+type Feature = 'upload' | 'crop' | 'rotate' | 'resize' | 'compress' | 'bgremove' | 'export';
 
 interface AppState {
   // UI State
@@ -50,7 +50,7 @@ export const useAppStore = create<AppState>((set) => ({
   // Initial state
   currentFeature: 'upload',
   sidebarOpen: true,
-  darkMode: false,
+  darkMode: true, // Dark mode by default for photo editing
 
   wasmModulesLoaded: {
     core: false,

@@ -1,17 +1,80 @@
 import React from 'react';
 import { useImageStore } from '../../store/imageStore';
 import { formatFileSize } from '../../utils/fileUtils';
+import { X, Check } from 'lucide-react';
 
-export const FileList: React.FC = () => {
+interface FileListProps {
+  variant?: 'default' | 'filmstrip';
+}
+
+export const FileList: React.FC<FileListProps> = ({ variant = 'default' }) => {
   const { images, removeImage, selectedImageId, selectImage } = useImageStore();
 
   if (images.length === 0) {
     return null;
   }
 
+  // Filmstrip variant - horizontal scrolling for workspace layout
+  if (variant === 'filmstrip') {
+    return (
+      <div className="h-full w-full flex items-center px-4 overflow-x-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+        <div className="flex gap-3 py-3">
+          {images.map((image) => (
+            <div
+              key={image.id}
+              onClick={() => selectImage(image.id)}
+              className={`
+                group relative flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200
+                ${selectedImageId === image.id
+                  ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-lg shadow-blue-900/50'
+                  : 'border-zinc-700 hover:border-zinc-600'}
+              `}
+            >
+              <img
+                src={image.url}
+                alt={image.file.name}
+                className="w-full h-full object-cover"
+              />
+
+              {/* Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+              {/* Remove button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('Remove this image?')) {
+                    removeImage(image.id);
+                  }
+                }}
+                className="absolute top-1 right-1 p-1 bg-red-500/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 focus:opacity-100"
+                aria-label="Remove image"
+              >
+                <X size={12} strokeWidth={3} />
+              </button>
+
+              {/* Selected indicator */}
+              {selectedImageId === image.id && (
+                <div className="absolute top-1 left-1 bg-blue-500 text-white p-1 rounded-full shadow-sm">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+              )}
+
+              {/* Filename on hover */}
+              <div className="absolute bottom-0 left-0 right-0 p-1.5 text-white text-[10px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gradient-to-t from-black/90 to-transparent">
+                <p className="truncate font-medium leading-tight">{image.file.name}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Default variant - grid layout
   return (
     <div className="w-full mt-6">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+      <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
         Uploaded Images ({images.length})
       </h3>
 
@@ -22,7 +85,9 @@ export const FileList: React.FC = () => {
             onClick={() => selectImage(image.id)}
             className={`
               group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200
-              ${selectedImageId === image.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'}
+              ${selectedImageId === image.id
+                ? 'border-blue-500 ring-2 ring-blue-500/50'
+                : 'border-zinc-700 hover:border-zinc-600'}
             `}
           >
             <img
@@ -43,9 +108,7 @@ export const FileList: React.FC = () => {
               className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-red-600 focus:opacity-100"
               aria-label="Remove image"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
+              <X size={16} />
             </button>
 
             <div className="absolute bottom-0 left-0 right-0 p-2 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -55,9 +118,7 @@ export const FileList: React.FC = () => {
 
             {selectedImageId === image.id && (
               <div className="absolute top-2 left-2 bg-blue-500 text-white p-1 rounded-full shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
+                <Check size={14} />
               </div>
             )}
           </div>

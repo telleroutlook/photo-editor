@@ -9,6 +9,7 @@ interface UploadZoneProps {
   maxFileSize?: number;
   maxFiles?: number;
   disabled?: boolean;
+  compact?: boolean; // Compact mode for sidebar
 }
 
 export const UploadZone: React.FC<UploadZoneProps> = ({
@@ -17,6 +18,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   maxFileSize = MAX_FILE_SIZE,
   maxFiles = MAX_FILES_UPLOAD,
   disabled = false,
+  compact = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -102,13 +104,14 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           if (e.key === 'Enter' || e.key === ' ') handleBrowseClick();
         }}
         className={`
-          relative border-2 border-dashed rounded-xl p-8 transition-all duration-200 ease-in-out
-          flex flex-col items-center justify-center text-center cursor-pointer min-h-[200px]
+          relative border-2 border-dashed rounded-xl transition-all duration-200 ease-in-out
+          flex flex-col items-center justify-center text-center cursor-pointer
+          ${compact ? 'p-4 min-h-[120px]' : 'p-8 min-h-[200px]'}
           ${disabled
-            ? 'bg-gray-50 border-gray-200 cursor-not-allowed opacity-60'
+            ? 'bg-zinc-900 border-zinc-700 cursor-not-allowed opacity-60'
             : isDragging
-              ? 'border-blue-500 bg-blue-50 scale-[1.01] shadow-lg'
-              : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50 bg-white'
+              ? 'border-blue-500 bg-blue-950/50 scale-[1.01] shadow-lg'
+              : 'border-zinc-700 hover:border-blue-500 hover:bg-zinc-900/50 bg-zinc-900/30'
           }
         `}
       >
@@ -123,30 +126,34 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         />
 
         <div className={`
-          p-4 rounded-full mb-4 transition-colors duration-200
-          ${isDragging ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}
+          p-3 rounded-full mb-2 transition-colors duration-200
+          ${compact ? '' : 'p-4 mb-4'}
+          ${isDragging ? 'bg-blue-900/50 text-blue-400' : 'bg-zinc-800 text-zinc-500'}
         `}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className={compact ? 'h-6 w-6' : 'h-10 w-10'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
         </div>
 
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">
-          {isDragging ? 'Drop files here' : 'Drag & Drop files here'}
+        <h3 className={`font-semibold text-zinc-300 ${compact ? 'text-sm mb-1' : 'text-lg mb-2'}`}>
+          {isDragging ? 'Drop files here' : (compact ? 'Upload Files' : 'Drag & Drop files here')}
         </h3>
 
-        <p className="text-sm text-gray-500 mb-4 max-w-xs">
-          or click to browse from your computer
-        </p>
+        {!compact && (
+          <p className="text-sm text-zinc-400 mb-4 max-w-xs">
+            or click to browse from your computer
+          </p>
+        )}
 
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>Supported: {acceptedFormats.map(f => f.toString().split('/')[1]?.toUpperCase()).join(', ')}</p>
-          <p>Max size: {Math.round(maxFileSize / 1024 / 1024)}MB</p>
+        <div className={`text-zinc-500 space-y-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+          {!compact && <p>Supported: {acceptedFormats.map(f => f.toString().split('/')[1]?.toUpperCase()).join(', ')}</p>}
+          {!compact && <p>Max size: {Math.round(maxFileSize / 1024 / 1024)}MB</p>}
+          {compact && <p className="text-zinc-600">Click or drag files</p>}
         </div>
 
         {error && (
           <div
-            className="absolute bottom-4 left-0 right-0 mx-auto w-max max-w-[90%] bg-red-100 text-red-600 text-sm py-2 px-4 rounded-full animate-fade-in"
+            className="absolute bottom-4 left-0 right-0 mx-auto w-max max-w-[90%] bg-red-900/90 text-red-200 text-sm py-2 px-4 rounded-full animate-fade-in"
             onClick={(e) => e.stopPropagation()}
           >
             {error}

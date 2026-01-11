@@ -1,8 +1,8 @@
 /**
  * Preview Components
- * Placeholder for before/after preview components
+ * Generic image preview and comparison components
  */
 
-// Export preview components here
+export { PreviewCanvas } from './PreviewCanvas';
 // export { BeforeAfter } from './BeforeAfter';
 // export { ComparisonSlider } from './ComparisonSlider';
