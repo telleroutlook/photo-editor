@@ -14,6 +14,14 @@ pub struct CropRect {
 }
 
 #[wasm_bindgen]
+impl CropRect {
+    #[wasm_bindgen(constructor)]
+    pub fn new(x: u32, y: u32, width: u32, height: u32) -> CropRect {
+        CropRect { x, y, width, height }
+    }
+}
+
+#[wasm_bindgen]
 pub enum RotateAngle {
     Degree0 = 0,
     Degree90 = 90,

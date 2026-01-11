@@ -24,13 +24,17 @@ async function initWasm(): Promise<void> {
 
     // Dynamically import the compiled WASM module
     const wasmUrl = new URL('/wasm/core/photo_editor_core.js', import.meta.url);
-    const wasmModule = await import(wasmUrl.href);
+    const loadedModule = await import(wasmUrl.href);
 
     // Initialize the WASM module
-    await wasmModule.default();
+    await loadedModule.default();
+
+    // Assign to global variable (NOT local variable to avoid shadowing)
+    wasmModule = loadedModule as CoreWasmApi;
 
     console.log('✅ Core WASM module loaded successfully');
-    console.log('📦 Module exports:', Object.keys(wasmModule));
+    console.log('📦 Module exports:', Object.keys(loadedModule));
+    console.log('📦 CropRect class:', loadedModule.CropRect);
 
     initialized = true;
 
@@ -41,7 +45,7 @@ async function initWasm(): Promise<void> {
       data: {
         message: 'Core WASM module loaded successfully',
         moduleType: 'wasm',
-        functions: Object.keys(wasmModule),
+        functions: Object.keys(loadedModule),
       },
       processingTime: 0,
     });
@@ -83,30 +87,46 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    void (await wasmModule.crop_image(
-      input,
-      width,
-      height,
-      cropRect,
-      output
-    )); // Return value not currently used
-
-    // Create new ImageData from output
-    const newImageData = new ImageData(
-      new Uint8ClampedArray(output),
+    // ✅ Create CropRect instance using WASM-exported class
+    // After recompiling with constructor, this will work correctly
+    const wasmCropRect = new (wasmModule as any).CropRect(
+      cropRect.x,
+      cropRect.y,
       cropRect.width,
       cropRect.height
     );
 
-    const processingTime = performance.now() - startTime;
+    try {
+      void (await wasmModule.crop_image(
+        input,
+        width,
+        height,
+        wasmCropRect,  // Pass CropRect class instance
+        output
+      )); // Return value not currently used
 
-    sendMessage({
-      id: message.id,
-      type: MessageType.CROP_IMAGE,
-      success: true,
-      data: { imageData: newImageData, width: cropRect.width, height: cropRect.height },
-      processingTime,
-    });
+      // Create new ImageData from output
+      const newImageData = new ImageData(
+        new Uint8ClampedArray(output),
+        cropRect.width,
+        cropRect.height
+      );
+
+      const processingTime = performance.now() - startTime;
+
+      sendMessage({
+        id: message.id,
+        type: MessageType.CROP_IMAGE,
+        success: true,
+        data: { imageData: newImageData, width: cropRect.width, height: cropRect.height },
+        processingTime,
+      });
+    } finally {
+      // Free WASM memory
+      if (wasmCropRect && typeof wasmCropRect.free === 'function') {
+        wasmCropRect.free();
+      }
+    }
   } catch (error) {
     const processingTime = performance.now() - startTime;
 

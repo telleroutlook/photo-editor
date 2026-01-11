@@ -22,9 +22,9 @@ import { BgRemoveControls } from './components/bgremove/BgRemoveControls';
 import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, MessageType, CropRect } from './types';
 import type { JpegAdvancedParams, WebPAdvancedParams } from './types/wasm';
 import { useCompressWorker } from './hooks/useCompressWorker';
+import { useCoreWorker } from './hooks/useCoreWorker';
 import { fileToImageData } from './utils/imageUtils';
 import { formatBytes } from './utils/constants';
-import { getCoreWorker } from './utils/workerManager';
 
 function App() {
   const { currentFeature, setDarkMode } = useAppStore();
@@ -52,6 +52,7 @@ function App() {
   const [isCompressing, setIsCompressing] = useState(false);
 
   const { compressJpeg, compressWebp, compressPng, compressToSize, error: wasmError } = useCompressWorker();
+  const { cropImage, rotateImage, flipImage, resizeImage } = useCoreWorker();
 
   // ============= RESIZE TOOL STATE =============
   const [resizeParams, setResizeParams] = useState<{
@@ -268,40 +269,19 @@ function App() {
       const rgbaBuffer = new Uint8Array(imageData.data);
 
       // Send to WASM worker for resizing
-      const worker = getCoreWorker();
-      const response = await worker.sendMessage<{
-        imageData: Uint8Array;
-        width: number;
-        height: number;
-      }>({
-        id: `${Date.now()}-resize`,
-        type: MessageType.RESIZE_IMAGE,
-        payload: {
-          imageData: rgbaBuffer.buffer,
-          width: currentImage.width,
-          height: currentImage.height,
-          newWidth,
-          newHeight,
-          quality,
-        },
-        timestamp: Date.now(),
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Resize operation failed');
-      }
+      const result = await resizeImage(rgbaBuffer, currentImage.width, currentImage.height, newWidth, newHeight, quality);
 
       // Convert result back to ImageData
       const resizedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
-        response.data.width,
-        response.data.height
+        new Uint8ClampedArray(result.imageData),
+        result.width,
+        result.height
       );
 
       // Create result canvas and convert to blob
       const resultCanvas = document.createElement('canvas');
-      resultCanvas.width = response.data.width;
-      resultCanvas.height = response.data.height;
+      resultCanvas.width = result.width;
+      resultCanvas.height = result.height;
       const resultCtx = resultCanvas.getContext('2d');
       if (!resultCtx) {
         throw new Error('Failed to get canvas context');
@@ -318,8 +298,7 @@ function App() {
             `Original: ${currentImage.width} × ${currentImage.height} px\n` +
             `Resized: ${newWidth} × ${newHeight} px\n` +
             `Scale: ${scale}%\n` +
-            `Quality: ${quality === ResizeQuality.High ? 'High (Bicubic)' : 'Fast (Bilinear)'}\n` +
-            `Processing time: ${response.processingTime}ms\n\n` +
+            `Quality: ${quality === ResizeQuality.High ? 'High (Bicubic)' : 'Fast (Bilinear)'}\n\n` +
             `📥 File downloaded`;
 
           alert(message);
@@ -330,7 +309,6 @@ function App() {
         from: `${currentImage.width}×${currentImage.height}`,
         to: `${newWidth}×${newHeight}`,
         quality,
-        processingTime: response.processingTime,
       });
     } catch (error) {
       console.error('❌ Resize failed:', error);
@@ -338,7 +316,7 @@ function App() {
     } finally {
       setIsResizing(false);
     }
-  }, [currentImage, resizeParams]);
+  }, [currentImage, resizeParams, resizeImage]);
 
   const handleResetResize = useCallback(() => {
     if (currentImage) {
@@ -363,38 +341,19 @@ function App() {
       const rgbaBuffer = new Uint8Array(imageData.data);
 
       // Send to WASM worker for rotation
-      const worker = getCoreWorker();
-      const response = await worker.sendMessage<{
-        imageData: Uint8Array;
-        width: number;
-        height: number;
-      }>({
-        id: `${Date.now()}-rotate`,
-        type: MessageType.ROTATE_IMAGE,
-        payload: {
-          imageData: rgbaBuffer.buffer,
-          width: currentImage.width,
-          height: currentImage.height,
-          angle,
-        },
-        timestamp: Date.now(),
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Rotation operation failed');
-      }
+      const result = await rotateImage(rgbaBuffer, currentImage.width, currentImage.height, angle);
 
       // Convert result back to ImageData
       const rotatedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
-        response.data.width,
-        response.data.height
+        new Uint8ClampedArray(result.imageData),
+        result.width,
+        result.height
       );
 
       // Create result canvas and convert to blob
       const resultCanvas = document.createElement('canvas');
-      resultCanvas.width = response.data.width;
-      resultCanvas.height = response.data.height;
+      resultCanvas.width = result.width;
+      resultCanvas.height = result.height;
       const resultCtx = resultCanvas.getContext('2d');
       if (!resultCtx) {
         throw new Error('Failed to get canvas context');
@@ -409,8 +368,7 @@ function App() {
           const message = `✅ Rotation complete!\n\n` +
             `Angle: ${angle}°\n` +
             `Original: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Result: ${response.data!.width} × ${response.data!.height} px\n` +
-            `Processing time: ${response.processingTime}ms\n\n` +
+            `Result: ${result.width} × ${result.height} px\n\n` +
             `📥 File downloaded`;
 
           alert(message);
@@ -420,8 +378,7 @@ function App() {
       console.log('✅ Rotation applied successfully', {
         angle,
         from: `${currentImage.width}×${currentImage.height}`,
-        to: `${response.data.width}×${response.data.height}`,
-        processingTime: response.processingTime,
+        to: `${result.width}×${result.height}`,
       });
     } catch (error) {
       console.error('❌ Rotation failed:', error);
@@ -429,7 +386,7 @@ function App() {
     } finally {
       setIsRotating(false);
     }
-  }, [currentImage]);
+  }, [currentImage, rotateImage]);
 
   const handleFlipHorizontal = useCallback(async () => {
     if (!currentImage) return;
@@ -441,38 +398,19 @@ function App() {
       const rgbaBuffer = new Uint8Array(imageData.data);
 
       // Send to WASM worker for flipping
-      const worker = getCoreWorker();
-      const response = await worker.sendMessage<{
-        imageData: Uint8Array;
-        width: number;
-        height: number;
-      }>({
-        id: `${Date.now()}-flip`,
-        type: MessageType.FLIP_IMAGE,
-        payload: {
-          imageData: rgbaBuffer.buffer,
-          width: currentImage.width,
-          height: currentImage.height,
-          direction: FlipDirection.Horizontal,
-        },
-        timestamp: Date.now(),
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Flip operation failed');
-      }
+      const result = await flipImage(rgbaBuffer, currentImage.width, currentImage.height, FlipDirection.Horizontal);
 
       // Convert result back to ImageData
       const flippedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
-        response.data.width,
-        response.data.height
+        new Uint8ClampedArray(result.imageData),
+        result.width,
+        result.height
       );
 
       // Create result canvas and convert to blob
       const resultCanvas = document.createElement('canvas');
-      resultCanvas.width = response.data.width;
-      resultCanvas.height = response.data.height;
+      resultCanvas.width = result.width;
+      resultCanvas.height = result.height;
       const resultCtx = resultCanvas.getContext('2d');
       if (!resultCtx) {
         throw new Error('Failed to get canvas context');
@@ -485,24 +423,21 @@ function App() {
           downloadImage(blob, currentImage.file.name, 'flipped_horizontal', 'png');
 
           const message = `✅ Horizontal flip complete!\n\n` +
-            `Size: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Processing time: ${response.processingTime}ms\n\n` +
+            `Size: ${currentImage.width} × ${currentImage.height} px\n\n` +
             `📥 File downloaded`;
 
           alert(message);
         }
       }, 'image/png');
 
-      console.log('✅ Horizontal flip applied successfully', {
-        processingTime: response.processingTime,
-      });
+      console.log('✅ Horizontal flip applied successfully');
     } catch (error) {
       console.error('❌ Flip failed:', error);
       alert(`Flip failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRotating(false);
     }
-  }, [currentImage]);
+  }, [currentImage, flipImage]);
 
   const handleFlipVertical = useCallback(async () => {
     if (!currentImage) return;
@@ -514,38 +449,19 @@ function App() {
       const rgbaBuffer = new Uint8Array(imageData.data);
 
       // Send to WASM worker for flipping
-      const worker = getCoreWorker();
-      const response = await worker.sendMessage<{
-        imageData: Uint8Array;
-        width: number;
-        height: number;
-      }>({
-        id: `${Date.now()}-flip`,
-        type: MessageType.FLIP_IMAGE,
-        payload: {
-          imageData: rgbaBuffer.buffer,
-          width: currentImage.width,
-          height: currentImage.height,
-          direction: FlipDirection.Vertical,
-        },
-        timestamp: Date.now(),
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Flip operation failed');
-      }
+      const result = await flipImage(rgbaBuffer, currentImage.width, currentImage.height, FlipDirection.Vertical);
 
       // Convert result back to ImageData
       const flippedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
-        response.data.width,
-        response.data.height
+        new Uint8ClampedArray(result.imageData),
+        result.width,
+        result.height
       );
 
       // Create result canvas and convert to blob
       const resultCanvas = document.createElement('canvas');
-      resultCanvas.width = response.data.width;
-      resultCanvas.height = response.data.height;
+      resultCanvas.width = result.width;
+      resultCanvas.height = result.height;
       const resultCtx = resultCanvas.getContext('2d');
       if (!resultCtx) {
         throw new Error('Failed to get canvas context');
@@ -558,24 +474,21 @@ function App() {
           downloadImage(blob, currentImage.file.name, 'flipped_vertical', 'png');
 
           const message = `✅ Vertical flip complete!\n\n` +
-            `Size: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Processing time: ${response.processingTime}ms\n\n` +
+            `Size: ${currentImage.width} × ${currentImage.height} px\n\n` +
             `📥 File downloaded`;
 
           alert(message);
         }
       }, 'image/png');
 
-      console.log('✅ Vertical flip applied successfully', {
-        processingTime: response.processingTime,
-      });
+      console.log('✅ Vertical flip applied successfully');
     } catch (error) {
       console.error('❌ Flip failed:', error);
       alert(`Flip failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsRotating(false);
     }
-  }, [currentImage]);
+  }, [currentImage, flipImage]);
 
   const handleResetRotate = useCallback(() => {
     setRotation(0);
@@ -597,38 +510,19 @@ function App() {
       const rgbaBuffer = new Uint8Array(imageData.data);
 
       // Send to WASM worker for cropping
-      const worker = getCoreWorker();
-      const response = await worker.sendMessage<{
-        imageData: Uint8Array;
-        width: number;
-        height: number;
-      }>({
-        id: `${Date.now()}-crop`,
-        type: MessageType.CROP_IMAGE,
-        payload: {
-          imageData: rgbaBuffer.buffer,
-          width: currentImage.width,
-          height: currentImage.height,
-          cropRect,
-        },
-        timestamp: Date.now(),
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Crop operation failed');
-      }
+      const result = await cropImage(rgbaBuffer, currentImage.width, currentImage.height, cropRect);
 
       // Convert result back to ImageData
       const croppedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData),
-        response.data.width,
-        response.data.height
+        new Uint8ClampedArray(result.imageData),
+        result.width,
+        result.height
       );
 
       // Create result canvas and convert to blob
       const resultCanvas = document.createElement('canvas');
-      resultCanvas.width = response.data.width;
-      resultCanvas.height = response.data.height;
+      resultCanvas.width = result.width;
+      resultCanvas.height = result.height;
       const resultCtx = resultCanvas.getContext('2d');
       if (!resultCtx) {
         throw new Error('Failed to get canvas context');
@@ -642,9 +536,8 @@ function App() {
 
           const message = `✅ Crop complete!\n\n` +
             `Original: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Cropped: ${response.data!.width} × ${response.data!.height} px\n` +
-            `Crop region: x=${cropRect.x}, y=${cropRect.y}, w=${cropRect.width}, h=${cropRect.height}\n` +
-            `Processing time: ${response.processingTime}ms\n\n` +
+            `Cropped: ${result.width} × ${result.height} px\n` +
+            `Crop region: x=${cropRect.x}, y=${cropRect.y}, w=${cropRect.width}, h=${cropRect.height}\n\n` +
             `📥 File downloaded`;
 
           alert(message);
@@ -653,9 +546,8 @@ function App() {
 
       console.log('✅ Crop applied successfully', {
         from: `${currentImage.width}×${currentImage.height}`,
-        to: `${response.data.width}×${response.data.height}`,
+        to: `${result.width}×${result.height}`,
         cropRect,
-        processingTime: response.processingTime,
       });
     } catch (error) {
       console.error('❌ Crop failed:', error);
@@ -663,7 +555,7 @@ function App() {
     } finally {
       setIsCropping(false);
     }
-  }, [currentImage, cropRect]);
+  }, [currentImage, cropRect, cropImage]);
 
   const handleResetCrop = useCallback(() => {
     if (currentImage) {
