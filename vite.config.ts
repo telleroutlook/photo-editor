@@ -1,8 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-import { plugin as mdPlugin } from 'vite-plugin-markdown'
-// Note: You may need to install this package or remove if not used
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // Custom plugin to handle TypeScript worker files
 function tsWorkerPlugin() {
@@ -77,7 +76,14 @@ function tsWorkerPlugin() {
 export default defineConfig({
   plugins: [
     react(),
-    tsWorkerPlugin()
+    tsWorkerPlugin(),
+    // Bundle analyzer - generates stats.html
+    visualizer({
+      filename: 'dist/stats.html',
+      open: false,
+      gzipSize: true,
+      brotliSize: true,
+    })
   ],
   resolve: {
     alias: {
@@ -97,11 +103,47 @@ export default defineConfig({
             return 'assets/[name]-[hash].js'
           }
           return 'assets/[name]-[hash].[ext]'
+        },
+        // Manual code splitting for better performance
+        manualChunks: (id) => {
+          // Fabric.js - only used in crop tool
+          if (id.includes('node_modules/fabric')) {
+            return 'vendor-fabric'
+          }
+
+          // JSZip - only used in batch processing
+          if (id.includes('node_modules/jszip')) {
+            return 'vendor-jszip'
+          }
+
+          // Lucide icons - large icon library
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-icons'
+          }
+
+          // Zustand - state management
+          if (id.includes('node_modules/zustand')) {
+            return 'vendor-zustand'
+          }
+
+          // React and related packages (scheduler, etc.)
+          if (id.includes('node_modules/react') ||
+              id.includes('node_modules/react-dom') ||
+              id.includes('node_modules/scheduler')) {
+            return 'vendor-react'
+          }
+
+          // Other node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor-other'
+          }
         }
       }
     },
     sourcemap: true,
-    minify: 'esbuild'
+    minify: 'esbuild',
+    // Increase chunk size warning limit since we're now splitting properly
+    chunkSizeWarningLimit: 1000
   },
   worker: {
     format: 'es' // Use ES module format for workers

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useAppStore } from './store/appStore';
 import { useImageStore } from './store/imageStore';
 import { WorkspaceLayout } from './layouts/WorkspaceLayout';
@@ -8,7 +8,8 @@ import { PasteHandler } from './components/upload/PasteHandler';
 
 // Canvas Views
 import { PreviewCanvas } from './components/preview/PreviewCanvas';
-import { CropCanvas } from './components/crop/CropCanvas';
+// Lazy load CropCanvas to defer Fabric.js loading until needed
+const CropCanvas = lazy(() => import('./components/crop/CropCanvas').then(module => ({ default: module.CropCanvas })));
 
 // Tool Controls
 import { CompressControls } from './components/compress/CompressControls';
@@ -886,14 +887,20 @@ function App() {
     // Feature-specific canvas rendering
     switch (currentFeature) {
       case 'crop':
-        // Use CropCanvas for interactive cropping
+        // Use CropCanvas for interactive cropping (lazy loaded with Fabric.js)
         return (
-          <CropCanvas
-            imageId={currentImage.id}
-            imageData={cropImageData}
-            initialCropRect={cropRect}
-            onCropChange={handleCropChange}
-          />
+          <Suspense fallback={
+            <div className="flex items-center justify-center w-full h-full">
+              <div className="text-zinc-400">Loading crop tool...</div>
+            </div>
+          }>
+            <CropCanvas
+              imageId={currentImage.id}
+              imageData={cropImageData}
+              initialCropRect={cropRect}
+              onCropChange={handleCropChange}
+            />
+          </Suspense>
         );
 
       default:
