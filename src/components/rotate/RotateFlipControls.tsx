@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateAngle, FlipDirection } from '../../types';
+import { RotateAngle } from '../../types';
 
 interface RotateFlipControlsProps {
   currentRotation: RotateAngle;

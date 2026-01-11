@@ -16,7 +16,7 @@ interface BatchExportProps {
   onParamsChange?: (_params: BatchParams) => void;
 }
 
-export function BatchExport({ batchParams, onParamsChange }: BatchExportProps) {
+export function BatchExport({ batchParams }: BatchExportProps) {
   const { images } = useImageStore();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [zipFileName, setZipFileName] = useState('processed_images.zip');

@@ -173,7 +173,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       advancedParams?: JpegAdvancedParams
     ): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<CompressResult>({
           type: MessageType.COMPRESS_JPEG,
           payload: {
             imageData,
@@ -213,7 +213,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       advancedParams?: WebPAdvancedParams
     ): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<CompressResult>({
           type: MessageType.COMPRESS_WEBP,
           payload: {
             imageData,
@@ -254,7 +254,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       format: CompressionFormat
     ): Promise<CompressResult & { quality: number }> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<CompressResult & { quality: number }>({
           type: MessageType.COMPRESS_TO_SIZE,
           payload: {
             imageData,
@@ -288,7 +288,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
   const compressPng = useCallback(
     async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<CompressResult>({
           type: MessageType.COMPRESS_PNG,
           payload: {
             imageData,

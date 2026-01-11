@@ -83,13 +83,6 @@ export const ResizeControls: React.FC<ResizeControlsProps> = ({
     onResizeChange({ width, height, quality: newQuality });
   };
 
-  const handleReset = () => {
-    setWidth(currentSize.width);
-    setHeight(currentSize.height);
-    setQuality(ResizeQuality.High);
-    onReset();
-  };
-
   const isOriginalSize = width === currentSize.width && height === currentSize.height;
   const isValidSize = width > 0 && height > 0 && width <= 8192 && height <= 8192;
 

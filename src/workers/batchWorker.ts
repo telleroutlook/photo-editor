@@ -5,7 +5,6 @@
 
 import { expose } from 'comlink';
 import type { BatchParams, BatchItemStatus } from '../types/batch';
-import { MessageType } from '../types/worker';
 
 // Worker state
 const state = {
@@ -66,25 +65,28 @@ async function processImage(
         result = await processFlip(imageData, width, height, batchParams.params);
         break;
 
-      case 'resize':
+      case 'resize': {
         // Will call core worker for resize
         const resizeResult = await processResize(imageData, width, height, batchParams.params);
         result = resizeResult.imageData;
         resultWidth = resizeResult.width;
         resultHeight = resizeResult.height;
         break;
+      }
 
-      case 'compress':
+      case 'compress': {
         // Will call compress worker
         const compressResult = await processCompress(imageData, width, height, batchParams.params);
         result = compressResult;
         break;
+      }
 
-      case 'remove_background':
+      case 'remove_background': {
         // Will call bgremove worker
         const bgRemoveResult = await processBgRemove(imageData, width, height, batchParams.params);
         result = bgRemoveResult;
         break;
+      }
 
       default:
         throw new Error(`Unknown operation: ${batchParams.operation}`);

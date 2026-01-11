@@ -3,7 +3,6 @@
  * Allows users to select which images to include in batch processing
  */
 
-import { useState } from 'react';
 import { useImageStore } from '../../store/imageStore';
 import type { FileSelection } from '../../types/batch';
 

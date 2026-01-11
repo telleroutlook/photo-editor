@@ -13,10 +13,9 @@ interface BatchProgressProps {
 }
 
 export function BatchProgress({ status, items, showDetails = true }: BatchProgressProps) {
-  const { total, completed, failed, processing, pending, progress } = status;
+  const { total, completed, failed, processing, progress } = status;
 
   // Calculate stats
-  const successRate = total > 0 ? Math.round((completed / total) * 100) : 0;
   const totalSize = items.reduce((sum, item) => sum + (item.result?.size || 0), 0);
 
   return (

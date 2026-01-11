@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, Rect, Image as FabricImage } from 'fabric';
 import { CropRect } from '../../types';
 
@@ -75,7 +75,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     return () => {
       canvas.dispose();
     };
-  }, [canvasSize.width, canvasSize.height]);
+  }, [canvasSize]);
 
   // Calculate canvas size (responsive)
   useEffect(() => {
@@ -270,7 +270,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         }
       });
     };
-  }, [imageData.url, canvasSize]);  // ✅ Removed initialCropRect from dependencies
+  }, [imageData.url, canvasSize, imageLoaded]);  // ✅ Added imageLoaded to dependencies
 
   // Update crop rectangle when aspect ratio changes
   useEffect(() => {

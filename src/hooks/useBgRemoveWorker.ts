@@ -6,12 +6,7 @@
 import { useCallback } from 'react';
 import { useWasmWorker } from './useWasmWorker';
 import { MessageType } from '../types';
-import type {
-  RemoveSolidColorPayload,
-  MagicWandSelectPayload,
-  GrabCutSegmentPayload,
-  MaskData,
-} from '../types';
+import type { RemoveSolidColorPayload, MagicWandSelectPayload } from '../types';
 
 interface RemoveSolidColorResult {
   imageData: Uint8Array;
@@ -86,7 +81,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       feather?: number
     ): Promise<RemoveSolidColorResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<RemoveSolidColorResult>({
           type: MessageType.REMOVE_SOLID_COLOR,
           payload: {
             imageData,
@@ -129,7 +124,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       connected?: boolean
     ): Promise<MagicWandResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<MagicWandResult>({
           type: MessageType.MAGIC_WAND_SELECT,
           payload: {
             imageData,
@@ -174,7 +169,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       iterations?: number
     ): Promise<GrabCutResult> => {
       try {
-        const response = await sendMessage<any>({
+        const response = await sendMessage<GrabCutResult>({
           type: MessageType.GRABCUT_SEGMENT,
           payload: {
             imageData,
@@ -185,7 +180,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
             rectWidth,
             rectHeight,
             iterations: iterations ?? 5,
-          } as any,
+          },
         });
 
         if (!response.success || !response.data) {

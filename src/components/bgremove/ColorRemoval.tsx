@@ -19,8 +19,6 @@ export function ColorRemoval({ imageData, width, height, onRemoveComplete }: Col
   const [targetColor, setTargetColor] = useState<[number, number, number]>([255, 255, 255]);
   const [tolerance, setTolerance] = useState(30);
   const [feather, setFeather] = useState(0);
-  const [previewImage, setPreviewImage] = useState<ImageData | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
 
   // Draw image on canvas
   useEffect(() => {
@@ -67,7 +65,6 @@ export function ColorRemoval({ imageData, width, height, onRemoveComplete }: Col
     try {
       const result = await removeSolidColor(imageData, width, height, targetColor, tolerance, feather);
       onRemoveComplete(result.imageData.buffer as ArrayBuffer, result.width, result.height);
-      setShowPreview(false);
     } catch (error) {
       alert(`Error removing background: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -87,7 +84,6 @@ export function ColorRemoval({ imageData, width, height, onRemoveComplete }: Col
 
       const imgData = new ImageData(new Uint8ClampedArray(result.imageData), width, height);
       ctx.putImageData(imgData, 0, 0);
-      setShowPreview(true);
     } catch (error) {
       console.error('Preview failed:', error);
     }
@@ -95,7 +91,6 @@ export function ColorRemoval({ imageData, width, height, onRemoveComplete }: Col
 
   // Reset to original image
   const handleReset = useCallback(() => {
-    setShowPreview(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
 

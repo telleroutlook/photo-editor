@@ -137,7 +137,7 @@ export const CompressTool = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg]);
+  }, [selectedImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng]);
 
   const handleReset = useCallback(() => {
     const defaultParams = {

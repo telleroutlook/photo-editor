@@ -35,7 +35,7 @@ describe('FileSelection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useImageStore as any).mockReturnValue({
+    vi.mocked(useImageStore).mockReturnValue({
       images: mockImages,
     });
   });
@@ -53,7 +53,7 @@ describe('FileSelection', () => {
   });
 
   it('should display empty state when no images', () => {
-    (useImageStore as any).mockReturnValue({
+    vi.mocked(useImageStore).mockReturnValue({
       images: [],
     });
 

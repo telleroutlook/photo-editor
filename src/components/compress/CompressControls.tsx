@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompressionFormat } from '../../types';
 import { formatBytes } from '../../utils/constants';
 import type { JpegAdvancedParams, WebPAdvancedParams } from '../../types/wasm';

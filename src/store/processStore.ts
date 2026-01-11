@@ -13,7 +13,6 @@ import {
   AspectRatio,
   ResizeQuality,
   CompressionFormat,
-  FlipDirection,
 } from '../types';
 
 interface ProcessState {

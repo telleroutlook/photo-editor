@@ -62,7 +62,7 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
     apiRef.current = api as unknown as Remote<BatchWorkerApi>;
 
     // Initialize batch worker (call asynchronously)
-    (api as any).init(maxConcurrent).catch((err: Error) => {
+    api.init(maxConcurrent).catch((err: Error) => {
       console.error('Failed to initialize worker:', err);
     });
 
@@ -111,23 +111,27 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
           throw new Error('Worker API not initialized');
         }
 
-        const results = await (api as any).processBatch(tasks, params, (progress: any, completed: any, total: any) => {
-          const newStatus: BatchStatus = {
-            total,
-            completed,
-            failed: status.failed,
-            processing: total - completed,
-            pending: total - completed,
-            progress,
-          };
-          setStatus(newStatus);
-          onProgress?.(newStatus);
-        });
+        const results = await api.processBatch(
+          tasks,
+          params,
+          (progress: number, completed: number, total: number) => {
+            const newStatus: BatchStatus = {
+              total,
+              completed,
+              failed: status.failed,
+              processing: total - completed,
+              pending: total - completed,
+              progress,
+            };
+            setStatus(newStatus);
+            onProgress?.(newStatus);
+          }
+        );
 
         const finalStatus: BatchStatus = {
           total,
-          completed: results.filter((r: any) => r.status === 'completed').length,
-          failed: results.filter((r: any) => r.status === 'failed').length,
+          completed: results.filter((r: BatchItemStatus) => r.status === 'completed').length,
+          failed: results.filter((r: BatchItemStatus) => r.status === 'failed').length,
           processing: 0,
           pending: 0,
           progress: 100,
@@ -138,7 +142,7 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
         onComplete?.(results);
 
         // Call onItemComplete for each result
-        results.forEach((item: any) => {
+        results.forEach((item: BatchItemStatus) => {
           onItemComplete?.(item);
         });
 

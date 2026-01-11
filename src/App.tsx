@@ -881,6 +881,7 @@ function App() {
         width: currentImage.width,
         height: currentImage.height,
       }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [currentImage.url, currentImage.width, currentImage.height]
     );
 
