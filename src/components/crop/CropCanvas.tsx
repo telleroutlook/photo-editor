@@ -140,12 +140,23 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       return;
     }
 
+    // Debug: Log raw Fabric.js coordinates
+    console.log('📐 Fabric.js rect coordinates:', {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      scaleX: rect.scaleX,
+      scaleY: rect.scaleY,
+    });
+
     // Convert canvas coordinates back to image coordinates
+    // Note: Need to account for scale transformations
     const cropRect: CropRect = {
       x: Math.round((rect.left! * imageData.width) / canvasSize.width),
       y: Math.round((rect.top! * imageData.height) / canvasSize.height),
-      width: Math.round((rect.width! * imageData.width) / canvasSize.width),
-      height: Math.round((rect.height! * imageData.height) / canvasSize.height),
+      width: Math.round(((rect.width! * rect.scaleX!) * imageData.width) / canvasSize.width),
+      height: Math.round(((rect.height! * rect.scaleY!) * imageData.height) / canvasSize.height),
     };
 
     // Clamp values to image bounds
@@ -157,6 +168,17 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     // ✅ Only call onCropChange if values are valid AND changed
     if (cropRect.width > 0 && cropRect.height > 0) {
       const lastRect = lastCropRectRef.current;
+
+      // Debug: Log comparison
+      console.log('🔍 Crop rect comparison:', {
+        current: cropRect,
+        last: lastRect,
+        changed: !lastRect ||
+          lastRect.x !== cropRect.x ||
+          lastRect.y !== cropRect.y ||
+          lastRect.width !== cropRect.width ||
+          lastRect.height !== cropRect.height
+      });
 
       // Check if values actually changed (avoid unnecessary updates)
       if (!lastRect ||
@@ -176,6 +198,8 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
           lastCropRectRef.current = cropRect;
           latestOnCropChangeRef.current(cropRect);
         }, 100);
+      } else {
+        console.log('⏭️ Skipped update (no change)');
       }
     } else {
       console.warn('⚠️ Invalid crop rect (zero width/height), skipping:', cropRect);
@@ -341,7 +365,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
   // Listen to crop rectangle modifications
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
-    if (!canvas || !cropRectRef.current) return;
+    if (!canvas || !cropRectRef.current || !imageLoaded) return;
 
     console.log('🔧 Setting up Fabric.js event listeners');
 
@@ -374,7 +398,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       canvas.off('object:scaling', handleObjectScaling);
       canvas.off('object:moving', handleObjectMoving);
     };
-  }, []);  // ✅ Empty dependency array - only runs once!
+  }, [imageLoaded]);  // ✅ Depend on imageLoaded to ensure cropRect exists
 
   return (
     <div className="w-full">

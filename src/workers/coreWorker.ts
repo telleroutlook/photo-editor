@@ -75,8 +75,8 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('Missing required parameters for crop');
     }
 
-    // Convert ImageData to Uint8Array (RGBA format)
-    const input = new Uint8Array(imageData.data);
+    // Convert ArrayBuffer to Uint8Array (RGBA format)
+    const input = new Uint8Array(imageData);
 
     // Allocate output buffer
     const outputSize = cropRect.width * cropRect.height * 4; // RGBA
@@ -105,20 +105,14 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
         output
       )); // Return value not currently used
 
-      // Create new ImageData from output
-      const newImageData = new ImageData(
-        new Uint8ClampedArray(output),
-        cropRect.width,
-        cropRect.height
-      );
-
       const processingTime = performance.now() - startTime;
 
+      // Return Uint8Array (not ImageData) for proper serialization
       sendMessage({
         id: message.id,
         type: MessageType.CROP_IMAGE,
         success: true,
-        data: { imageData: newImageData, width: cropRect.width, height: cropRect.height },
+        data: { imageData: output, width: cropRect.width, height: cropRect.height },
         processingTime,
       });
     } finally {
@@ -154,8 +148,8 @@ async function handleRotateImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('Missing required parameters for rotate');
     }
 
-    // Convert ImageData to Uint8Array
-    const input = new Uint8Array(imageData.data);
+    // Convert ArrayBuffer to Uint8Array
+    const input = new Uint8Array(imageData);
 
     // Calculate new dimensions after rotation
     let newWidth = width;
@@ -183,20 +177,14 @@ async function handleRotateImage(message: WorkerMessage<any>): Promise<void> {
       output
     );
 
-    // Create new ImageData
-    const newImageData = new ImageData(
-      new Uint8ClampedArray(output),
-      newWidth,
-      newHeight
-    );
-
     const processingTime = performance.now() - startTime;
 
+    // Return Uint8Array (not ImageData) for proper serialization
     sendMessage({
       id: message.id,
       type: MessageType.ROTATE_IMAGE,
       success: true,
-      data: { imageData: newImageData, width: newWidth, height: newHeight },
+      data: { imageData: output, width: newWidth, height: newHeight },
       processingTime,
     });
   } catch (error) {
@@ -226,8 +214,8 @@ async function handleFlipImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('Missing required parameters for flip');
     }
 
-    // Convert ImageData to Uint8Array
-    const input = new Uint8Array(imageData.data);
+    // Convert ArrayBuffer to Uint8Array
+    const input = new Uint8Array(imageData);
 
     // Allocate output buffer
     const outputSize = width * height * 4;
@@ -246,20 +234,14 @@ async function handleFlipImage(message: WorkerMessage<any>): Promise<void> {
       output
     );
 
-    // Create new ImageData
-    const newImageData = new ImageData(
-      new Uint8ClampedArray(output),
-      width,
-      height
-    );
-
     const processingTime = performance.now() - startTime;
 
+    // Return Uint8Array (not ImageData) for proper serialization
     sendMessage({
       id: message.id,
       type: MessageType.FLIP_IMAGE,
       success: true,
-      data: { imageData: newImageData, width, height },
+      data: { imageData: output, width, height },
       processingTime,
     });
   } catch (error) {
@@ -289,8 +271,8 @@ async function handleResizeImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('Missing required parameters for resize');
     }
 
-    // Convert ImageData to Uint8Array
-    const input = new Uint8Array(imageData.data);
+    // Convert ArrayBuffer to Uint8Array
+    const input = new Uint8Array(imageData);
 
     // Allocate output buffer
     const outputSize = newWidth * newHeight * 4;
@@ -311,20 +293,14 @@ async function handleResizeImage(message: WorkerMessage<any>): Promise<void> {
       output
     );
 
-    // Create new ImageData
-    const newImageData = new ImageData(
-      new Uint8ClampedArray(output),
-      newWidth,
-      newHeight
-    );
-
     const processingTime = performance.now() - startTime;
 
+    // Return Uint8Array (not ImageData) for proper serialization
     sendMessage({
       id: message.id,
       type: MessageType.RESIZE_IMAGE,
       success: true,
-      data: { imageData: newImageData, width: newWidth, height: newHeight },
+      data: { imageData: output, width: newWidth, height: newHeight },
       processingTime,
     });
   } catch (error) {
