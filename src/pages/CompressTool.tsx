@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { CompressControls } from '../components/compress';
 import { CompressionFormat } from '../types';
+import type { JpegAdvancedParams, WebPAdvancedParams } from '../types/wasm';
 import { formatBytes } from '../utils/constants';
 import { useCompressWorker } from '../hooks/useCompressWorker';
 import { fileToImageData } from '../utils/imageUtils';
@@ -13,10 +14,12 @@ export const CompressTool = () => {
     format: CompressionFormat;
     quality: number;
     targetSize?: number;
+    advancedParams?: JpegAdvancedParams | WebPAdvancedParams;
   }>({
     format: CompressionFormat.WebP,
     quality: 80,
     targetSize: undefined,
+    advancedParams: undefined,
   });
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -24,7 +27,12 @@ export const CompressTool = () => {
   const { compressJpeg, compressWebp, compressPng, compressToSize, loading: wasmLoading, error: wasmError } = useCompressWorker();
 
   // ✅ All useCallbacks must be declared before any conditional returns (React Hooks rule)
-  const handleCompressChange = useCallback((params: { format: CompressionFormat; quality: number; targetSize?: number }) => {
+  const handleCompressChange = useCallback((params: {
+    format: CompressionFormat;
+    quality: number;
+    targetSize?: number;
+    advancedParams?: JpegAdvancedParams | WebPAdvancedParams;
+  }) => {
     setCompressParams(params);
   }, []);
 
@@ -60,11 +68,13 @@ export const CompressTool = () => {
         );
       } else if (format === CompressionFormat.WebP) {
         // WebP compression
+        console.log('🚀 [CompressTool] Calling WebP compression with params:', compressParams.advancedParams);
         result = await compressWebp(
           rgbaBuffer,
           selectedImage.width,
           selectedImage.height,
-          quality
+          quality,
+          compressParams.advancedParams as WebPAdvancedParams
         );
       } else if (format === CompressionFormat.PNG) {
         // PNG compression
@@ -76,11 +86,13 @@ export const CompressTool = () => {
         );
       } else {
         // JPEG compression
+        console.log('🚀 [CompressTool] Calling JPEG compression with params:', compressParams.advancedParams);
         result = await compressJpeg(
           rgbaBuffer,
           selectedImage.width,
           selectedImage.height,
-          quality
+          quality,
+          compressParams.advancedParams as JpegAdvancedParams
         );
       }
 
@@ -132,6 +144,7 @@ export const CompressTool = () => {
       format: CompressionFormat.WebP,
       quality: 80,
       targetSize: undefined,
+      advancedParams: undefined,
     };
     setCompressParams(defaultParams);
   }, []);

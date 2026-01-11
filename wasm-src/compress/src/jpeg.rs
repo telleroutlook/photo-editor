@@ -4,7 +4,29 @@ use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
 /**
- * Compress RGBA image data to JPEG format
+ * JPEG advanced compression parameters
+ *
+ * Note: The image crate's JpegEncoder has limited parameter support.
+ * This structure provides a foundation for future enhancements with
+ * more advanced JPEG encoders like jpeg-encoder.
+ */
+#[wasm_bindgen]
+pub struct JpegAdvancedParams {
+    pub optimize: bool,        // Optimize Huffman tables (smaller file, slower encoding)
+    pub progressive: bool,     // Progressive JPEG (faster perceived loading)
+}
+
+impl Default for JpegAdvancedParams {
+    fn default() -> Self {
+        Self {
+            optimize: true,
+            progressive: false, // Default to non-progressive for compatibility
+        }
+    }
+}
+
+/**
+ * Compress RGBA image data to JPEG format (basic)
  *
  * # Arguments
  * * `input` - RGBA image data (4 bytes per pixel, row-major order)
@@ -82,6 +104,48 @@ pub fn compress_to_jpeg(
     }
 }
 
+/**
+ * Compress RGBA image data to JPEG format (advanced)
+ *
+ * # Arguments
+ * * `input` - RGBA image data (4 bytes per pixel, row-major order)
+ * * `width` - Image width in pixels
+ * * `height` - Image height in pixels
+ * * `quality` - JPEG quality (1-100)
+ * * `params` - Advanced encoding parameters
+ * * `output` - Output buffer for compressed JPEG data
+ *
+ * # Returns
+ * Ok(number_of_bytes_written) on success
+ * Err(error_message) on failure
+ *
+ * Note: Current implementation uses the image crate which has limited support
+ * for advanced parameters. The params are logged for future enhancement.
+ */
+pub fn compress_to_jpeg_advanced(
+    input: &[u8],
+    width: u32,
+    height: u32,
+    quality: u8,
+    params: &JpegAdvancedParams,
+    output: &mut [u8],
+) -> Result<usize, &'static str> {
+    web_sys::console::log_1(&"compress_to_jpeg_advanced: called with params".into());
+    web_sys::console::log_1(&format!("JPEG params - optimize: {}, progressive: {}",
+        params.optimize, params.progressive).into());
+
+    // For now, use basic compression (image crate doesn't expose advanced params)
+    // Future enhancement: Switch to jpeg-encoder crate for more control
+    let result = compress_to_jpeg(input, width, height, quality, output);
+
+    // Log note about advanced parameter support
+    if params.optimize || params.progressive {
+        web_sys::console::log_1(&"Note: optimize and progressive parameters logged but not applied (limited by image crate)".into());
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -110,8 +174,16 @@ mod tests {
 
         // Test valid quality values
         for quality in [1, 50, 100] {
+            let mut output = vec![0u8; 4096];
             let result = compress_to_jpeg(&rgba_data, 2, 2, quality, &mut output);
             assert!(result.is_ok());
         }
+    }
+
+    #[test]
+    fn test_jpeg_advanced_params_default() {
+        let params = JpegAdvancedParams::default();
+        assert_eq!(params.optimize, true);
+        assert_eq!(params.progressive, false);
     }
 }

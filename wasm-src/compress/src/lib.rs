@@ -5,6 +5,10 @@ mod webp;
 mod png;
 mod binary_search;
 
+// Export advanced parameters
+pub use jpeg::JpegAdvancedParams;
+pub use webp::WebPAdvancedParams;
+
 // Export compression result struct
 #[wasm_bindgen]
 pub struct CompressionResult {

@@ -15,6 +15,24 @@ export class CompressionResult {
   quality: number;
 }
 
+export class JpegAdvancedParams {
+  private constructor();
+  free(): void;
+  [Symbol.dispose](): void;
+  optimize: boolean;
+  progressive: boolean;
+}
+
+export class WebPAdvancedParams {
+  private constructor();
+  free(): void;
+  [Symbol.dispose](): void;
+  method: number;
+  filter_strength: number;
+  filter_sharpness: number;
+  sns_strength: number;
+}
+
 /**
  *
  * * Compress RGBA image data to JPEG format
@@ -97,8 +115,22 @@ export interface InitOutput {
   readonly __wbg_compressionresult_free: (a: number, b: number) => void;
   readonly __wbg_get_compressionresult_quality: (a: number) => number;
   readonly __wbg_get_compressionresult_size: (a: number) => number;
+  readonly __wbg_get_jpegadvancedparams_optimize: (a: number) => number;
+  readonly __wbg_get_jpegadvancedparams_progressive: (a: number) => number;
+  readonly __wbg_get_webpadvancedparams_filter_sharpness: (a: number) => number;
+  readonly __wbg_get_webpadvancedparams_filter_strength: (a: number) => number;
+  readonly __wbg_get_webpadvancedparams_method: (a: number) => number;
+  readonly __wbg_get_webpadvancedparams_sns_strength: (a: number) => number;
+  readonly __wbg_jpegadvancedparams_free: (a: number, b: number) => void;
   readonly __wbg_set_compressionresult_quality: (a: number, b: number) => void;
   readonly __wbg_set_compressionresult_size: (a: number, b: number) => void;
+  readonly __wbg_set_jpegadvancedparams_optimize: (a: number, b: number) => void;
+  readonly __wbg_set_jpegadvancedparams_progressive: (a: number, b: number) => void;
+  readonly __wbg_set_webpadvancedparams_filter_sharpness: (a: number, b: number) => void;
+  readonly __wbg_set_webpadvancedparams_filter_strength: (a: number, b: number) => void;
+  readonly __wbg_set_webpadvancedparams_method: (a: number, b: number) => void;
+  readonly __wbg_set_webpadvancedparams_sns_strength: (a: number, b: number) => void;
+  readonly __wbg_webpadvancedparams_free: (a: number, b: number) => void;
   readonly compress_jpeg: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
   readonly compress_png: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: any) => number;
   readonly compress_to_size: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: any) => number;

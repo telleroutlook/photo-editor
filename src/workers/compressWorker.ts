@@ -102,7 +102,7 @@ async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized. Call INIT_WORKER first.');
     }
 
-    const { imageData, width, height, quality } = message.payload;
+    const { imageData, width, height, quality, advancedParams } = message.payload;
 
     // Validate inputs
     if (!imageData || !width || !height || quality === undefined) {
@@ -121,13 +121,30 @@ async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
     const output = new Uint8Array(input.length);
 
     // Call WASM function (synchronous)
-    const compressedSize = wasmModule.compress_jpeg(
-      input,
-      width,
-      height,
-      quality,
-      output
-    );
+    let compressedSize: number;
+
+    // Check if advanced parameters are provided
+    if (advancedParams && wasmModule.compress_jpeg_advanced) {
+      console.log('📊 [CompressWorker] Using advanced JPEG compression with params:', advancedParams);
+
+      compressedSize = wasmModule.compress_jpeg_advanced(
+        input,
+        width,
+        height,
+        quality,
+        advancedParams,
+        output
+      );
+    } else {
+      // Use basic compression
+      compressedSize = wasmModule.compress_jpeg(
+        input,
+        width,
+        height,
+        quality,
+        output
+      );
+    }
 
     // Trim output buffer to actual compressed size
     const compressedData = output.slice(0, compressedSize);
@@ -174,7 +191,7 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized. Call INIT_WORKER first.');
     }
 
-    const { imageData, width, height, quality } = message.payload;
+    const { imageData, width, height, quality, advancedParams } = message.payload;
 
     // Validate inputs
     if (!imageData || !width || !height || quality === undefined) {
@@ -203,13 +220,30 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
     console.log('📦 [CompressWorker] Calling WASM compress_webp...');
 
     // Call WASM function (synchronous)
-    const compressedSize = wasmModule.compress_webp(
-      input,
-      width,
-      height,
-      quality,
-      output
-    );
+    let compressedSize: number;
+
+    // Check if advanced parameters are provided
+    if (advancedParams && wasmModule.compress_webp_advanced) {
+      console.log('📊 [CompressWorker] Using advanced WebP compression with params:', advancedParams);
+
+      compressedSize = wasmModule.compress_webp_advanced(
+        input,
+        width,
+        height,
+        quality,
+        advancedParams,
+        output
+      );
+    } else {
+      // Use basic compression
+      compressedSize = wasmModule.compress_webp(
+        input,
+        width,
+        height,
+        quality,
+        output
+      );
+    }
 
     console.log('📊 [CompressWorker] WASM returned:', {
       compressedSize,

@@ -12,6 +12,13 @@ image = { version = "0.25", features = ["jpeg", "png"], default-features = false
 js-sys = "0.3"
 web-sys = { version = "0.3", features = ["console"] }
 
+# Note: WebP compression uses browser Canvas API (OffscreenCanvas)
+# Pure Rust WebP encoders like 'webp' crate require libwebp-sys (needs clang)
+# For WASM compatibility, we rely on Canvas fallback implemented in compressWorker.ts
+
+# Advanced JPEG encoding (if needed for more control)
+# jpeg-encoder = "0.6"
+
 [profile.release]
 opt-level = "z"
 lto = true

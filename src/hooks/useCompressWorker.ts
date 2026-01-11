@@ -12,6 +12,7 @@ import type {
   WorkerMessage,
   WorkerResponse,
 } from '../types';
+import type { JpegAdvancedParams, WebPAdvancedParams } from '../types/wasm';
 
 interface CompressResult {
   imageData: Uint8Array;
@@ -21,8 +22,20 @@ interface CompressResult {
 }
 
 interface UseCompressWorkerReturn {
-  compressJpeg: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
-  compressWebp: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
+  compressJpeg: (
+    imageData: Uint8Array,
+    width: number,
+    height: number,
+    quality: number,
+    advancedParams?: JpegAdvancedParams
+  ) => Promise<CompressResult>;
+  compressWebp: (
+    imageData: Uint8Array,
+    width: number,
+    height: number,
+    quality: number,
+    advancedParams?: WebPAdvancedParams
+  ) => Promise<CompressResult>;
   compressPng: (imageData: Uint8Array, width: number, height: number, quality: number) => Promise<CompressResult>;
   compressToSize: (
     imageData: Uint8Array,
@@ -152,7 +165,13 @@ export function useCompressWorker(): UseCompressWorkerReturn {
    * Compress image to JPEG format
    */
   const compressJpeg = useCallback(
-    async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
+    async (
+      imageData: Uint8Array,
+      width: number,
+      height: number,
+      quality: number,
+      advancedParams?: JpegAdvancedParams
+    ): Promise<CompressResult> => {
       try {
         const response = await sendMessage<any>({
           type: MessageType.COMPRESS_JPEG,
@@ -161,6 +180,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
             width,
             height,
             quality,
+            advancedParams, // Pass advanced parameters to worker
           } as CompressJpegPayload,
         });
 
@@ -185,7 +205,13 @@ export function useCompressWorker(): UseCompressWorkerReturn {
    * Compress image to WebP format
    */
   const compressWebp = useCallback(
-    async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
+    async (
+      imageData: Uint8Array,
+      width: number,
+      height: number,
+      quality: number,
+      advancedParams?: WebPAdvancedParams
+    ): Promise<CompressResult> => {
       try {
         const response = await sendMessage<any>({
           type: MessageType.COMPRESS_WEBP,
@@ -194,6 +220,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
             width,
             height,
             quality,
+            advancedParams, // Pass advanced parameters to worker
           } as CompressWebpPayload,
         });
 

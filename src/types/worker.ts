@@ -4,6 +4,7 @@
 
 import type { CropRect, RotateAngle, FlipDirection, ResizeQuality } from './wasm';
 import type { CompressionFormat } from './image';
+import type { JpegAdvancedParams, WebPAdvancedParams } from './wasm';
 
 // ============================================================================
 // Message Type Definitions
@@ -116,6 +117,7 @@ export interface CompressJpegPayload {
   width: number;
   height: number;
   quality: number;
+  advancedParams?: JpegAdvancedParams;
 }
 
 /**
@@ -126,6 +128,7 @@ export interface CompressWebpPayload {
   width: number;
   height: number;
   quality: number;
+  advancedParams?: WebPAdvancedParams;
 }
 
 /**

@@ -136,6 +136,24 @@ export interface CoreWasmApi {
 // ============================================================================
 
 /**
+ * JPEG advanced compression parameters
+ */
+export interface JpegAdvancedParams {
+  optimize: boolean;     // Optimize Huffman tables
+  progressive: boolean;  // Progressive JPEG encoding
+}
+
+/**
+ * WebP advanced compression parameters
+ */
+export interface WebPAdvancedParams {
+  method: number;          // 0-6, compression method (0=fastest, 6=slowest best)
+  filter_strength: number; // 0-100, filter strength
+  filter_sharpness: number;// 0-100, filter sharpness
+  sns_strength: number;    // 0-100, spatial noise shielding
+}
+
+/**
  * Compress WASM module API
  * Provides high-quality image compression functions
  * Note: These are synchronous functions (not async/Promise)
@@ -159,6 +177,25 @@ export interface CompressWasmApi {
   ) => number;
 
   /**
+   * Compress image as JPEG with advanced parameters
+   * @param input - Input image data (RGBA format)
+   * @param width - Image width in pixels
+   * @param height - Image height in pixels
+   * @param quality - JPEG quality (1-100)
+   * @param params - Advanced parameters
+   * @param output - Output buffer for JPEG data
+   * @returns Number of bytes written to output
+   */
+  compress_jpeg_advanced: (
+    input: Uint8Array,
+    width: number,
+    height: number,
+    quality: number,
+    params: JpegAdvancedParams,
+    output: Uint8Array
+  ) => number;
+
+  /**
    * Compress image as WebP
    * @param input - Input image data (RGBA format)
    * @param width - Image width in pixels
@@ -172,6 +209,25 @@ export interface CompressWasmApi {
     width: number,
     height: number,
     quality: number,
+    output: Uint8Array
+  ) => number;
+
+  /**
+   * Compress image as WebP with advanced parameters
+   * @param input - Input image data (RGBA format)
+   * @param width - Image width in pixels
+   * @param height - Image height in pixels
+   * @param quality - WebP quality (1-100)
+   * @param params - Advanced parameters
+   * @param output - Output buffer for WebP data
+   * @returns Number of bytes written to output
+   */
+  compress_webp_advanced: (
+    input: Uint8Array,
+    width: number,
+    height: number,
+    quality: number,
+    params: WebPAdvancedParams,
     output: Uint8Array
   ) => number;
 

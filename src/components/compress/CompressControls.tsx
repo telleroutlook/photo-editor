@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { CompressionFormat } from '../../types';
 import { formatBytes } from '../../utils/constants';
+import type { JpegAdvancedParams, WebPAdvancedParams } from '../../types/wasm';
 
 interface CompressControlsProps {
   originalSize: number;
   originalFormat: string;
-  onCompressChange: (params: { format: CompressionFormat; quality: number; targetSize?: number }) => void;
+  onCompressChange: (params: {
+    format: CompressionFormat;
+    quality: number;
+    targetSize?: number;
+    advancedParams?: JpegAdvancedParams | WebPAdvancedParams;
+  }) => void;
   onApply: () => void;
   onReset: () => void;
   disabled?: boolean;
@@ -50,15 +56,64 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
   const [customTargetSize, setCustomTargetSize] = useState('1');
   const [targetSizeUnit, setTargetSizeUnit] = useState<'MB' | 'KB'>('MB');
 
+  // Advanced parameters state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // JPEG advanced parameters
+  const [jpegOptimize, setJpegOptimize] = useState(true);
+  const [jpegProgressive, setJpegProgressive] = useState(false);
+
+  // WebP advanced parameters
+  const [webpMethod, setWebpMethod] = useState(4);
+  const [webpFilterStrength, setWebpFilterStrength] = useState(60);
+  const [webpFilterSharpness, setWebpFilterSharpness] = useState(0);
+  const [webpSnsStrength, setWebpSnsStrength] = useState(50);
+
   // Notify parent of compression parameter changes
   // Only called on initial mount and when parameters actually change
   useEffect(() => {
-    if (mode === 'quality') {
-      onCompressChange({ format, quality });
+    // Build advanced parameters object based on format
+    let advancedParams: JpegAdvancedParams | WebPAdvancedParams | undefined;
+
+    if (showAdvanced) {
+      if (format === CompressionFormat.JPEG) {
+        advancedParams = {
+          optimize: jpegOptimize,
+          progressive: jpegProgressive,
+        } as JpegAdvancedParams;
+        console.log('🎛️ [CompressControls] JPEG Advanced Params:', advancedParams);
+      } else if (format === CompressionFormat.WebP) {
+        advancedParams = {
+          method: webpMethod,
+          filter_strength: webpFilterStrength,
+          filter_sharpness: webpFilterSharpness,
+          sns_strength: webpSnsStrength,
+        } as WebPAdvancedParams;
+        console.log('🎛️ [CompressControls] WebP Advanced Params:', advancedParams);
+      }
     } else {
-      onCompressChange({ format, quality, targetSize });
+      console.log('📌 [CompressControls] Advanced parameters disabled');
     }
-  }, [mode, format, quality, targetSize, onCompressChange]);
+
+    if (mode === 'quality') {
+      onCompressChange({ format, quality, advancedParams });
+    } else {
+      onCompressChange({ format, quality, targetSize, advancedParams });
+    }
+  }, [
+    mode,
+    format,
+    quality,
+    targetSize,
+    showAdvanced,
+    jpegOptimize,
+    jpegProgressive,
+    webpMethod,
+    webpFilterStrength,
+    webpFilterSharpness,
+    webpSnsStrength,
+    onCompressChange,
+  ]);
 
   // Handler functions - useEffect will handle parent notification
   const handleFormatChange = (newFormat: CompressionFormat) => {
@@ -295,6 +350,158 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
           </div>
         </div>
       )}
+
+      {/* Advanced Parameters Section */}
+      <div className="border-t pt-4">
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          disabled={disabled || isProcessing}
+          className="
+            w-full flex items-center justify-between px-3 py-2
+            text-sm font-medium text-gray-700
+            bg-gray-50 hover:bg-gray-100 rounded-lg
+            transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+          "
+        >
+          <span>⚙️ Advanced Parameters</span>
+          <svg
+            className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-4 pl-3">
+            {/* JPEG Advanced Options */}
+            {format === CompressionFormat.JPEG && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-600">JPEG Options</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={jpegOptimize}
+                      onChange={(e) => setJpegOptimize(e.target.checked)}
+                      disabled={disabled || isProcessing}
+                      className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span>Optimize Huffman</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={jpegProgressive}
+                      onChange={(e) => setJpegProgressive(e.target.checked)}
+                      disabled={disabled || isProcessing}
+                      className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                    />
+                    <span>Progressive JPEG</span>
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">
+                  ℹ️ Progressive JPEG loads faster, Optimize reduces file size
+                </p>
+              </div>
+            )}
+
+            {/* WebP Advanced Options */}
+            {format === CompressionFormat.WebP && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-600">WebP Options</h4>
+
+                {/* Compression Method */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs text-gray-600">Compression Method</label>
+                    <span className="text-xs font-medium text-blue-600">{webpMethod}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="6"
+                    step="1"
+                    value={webpMethod}
+                    onInput={(e) => setWebpMethod(parseInt(e.target.value))}
+                    onChange={(e) => setWebpMethod(parseInt(e.target.value))}
+                    disabled={disabled || isProcessing}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Fast</span>
+                    <span>Best</span>
+                  </div>
+                </div>
+
+                {/* Filter Strength */}
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <label className="text-xs text-gray-600">Filter Strength</label>
+                    <span className="text-xs font-medium text-blue-600">{webpFilterStrength}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={webpFilterStrength}
+                    onInput={(e) => setWebpFilterStrength(parseInt(e.target.value))}
+                    onChange={(e) => setWebpFilterStrength(parseInt(e.target.value))}
+                    disabled={disabled || isProcessing}
+                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
+                  />
+                </div>
+
+                {/* Filter Sharpness & SNS Strength */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-600">Sharpness: {webpFilterSharpness}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={webpFilterSharpness}
+                      onInput={(e) => setWebpFilterSharpness(parseInt(e.target.value))}
+                      onChange={(e) => setWebpFilterSharpness(parseInt(e.target.value))}
+                      disabled={disabled || isProcessing}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600">Noise Shield: {webpSnsStrength}</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={webpSnsStrength}
+                      onInput={(e) => setWebpSnsStrength(parseInt(e.target.value))}
+                      onChange={(e) => setWebpSnsStrength(parseInt(e.target.value))}
+                      disabled={disabled || isProcessing}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500 disabled:opacity-50 touch-none"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  ℹ️ Higher method = slower but better compression
+                </p>
+              </div>
+            )}
+
+            {/* PNG - No advanced options */}
+            {format === CompressionFormat.PNG && (
+              <div className="text-sm text-gray-500 italic">
+                PNG uses lossless compression - no advanced options available
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Size Comparison */}
       <div className="text-xs bg-gray-50 px-3 py-3 rounded border space-y-2">

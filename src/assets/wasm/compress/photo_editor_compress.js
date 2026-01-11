@@ -45,6 +45,14 @@ const CompressionResultFinalization = (typeof FinalizationRegistry === 'undefine
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_compressionresult_free(ptr >>> 0, 1));
 
+const JpegAdvancedParamsFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_jpegadvancedparams_free(ptr >>> 0, 1));
+
+const WebPAdvancedParamsFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_webpadvancedparams_free(ptr >>> 0, 1));
+
 /**
  * @enum {0 | 1 | 2}
  */
@@ -100,6 +108,130 @@ export class CompressionResult {
     }
 }
 if (Symbol.dispose) CompressionResult.prototype[Symbol.dispose] = CompressionResult.prototype.free;
+
+/**
+ *
+ * * JPEG advanced compression parameters
+ * *
+ * * Note: The image crate's JpegEncoder has limited parameter support.
+ * * This structure provides a foundation for future enhancements with
+ * * more advanced JPEG encoders like jpeg-encoder.
+ *
+ */
+export class JpegAdvancedParams {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        JpegAdvancedParamsFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_jpegadvancedparams_free(ptr, 0);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get optimize() {
+        const ret = wasm.__wbg_get_jpegadvancedparams_optimize(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {boolean} arg0
+     */
+    set optimize(arg0) {
+        wasm.__wbg_set_jpegadvancedparams_optimize(this.__wbg_ptr, arg0);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get progressive() {
+        const ret = wasm.__wbg_get_jpegadvancedparams_progressive(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {boolean} arg0
+     */
+    set progressive(arg0) {
+        wasm.__wbg_set_jpegadvancedparams_progressive(this.__wbg_ptr, arg0);
+    }
+}
+if (Symbol.dispose) JpegAdvancedParams.prototype[Symbol.dispose] = JpegAdvancedParams.prototype.free;
+
+/**
+ *
+ * * WebP advanced compression parameters
+ * *
+ * * Note: These parameters are currently logged but not fully utilized in WASM.
+ * * The actual WebP encoding uses browser's Canvas API (OffscreenCanvas) as fallback.
+ * * This interface is maintained for future implementation with WASM-compatible encoders.
+ *
+ */
+export class WebPAdvancedParams {
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        WebPAdvancedParamsFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_webpadvancedparams_free(ptr, 0);
+    }
+    /**
+     * @returns {number}
+     */
+    get method() {
+        const ret = wasm.__wbg_get_webpadvancedparams_method(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} arg0
+     */
+    set method(arg0) {
+        wasm.__wbg_set_webpadvancedparams_method(this.__wbg_ptr, arg0);
+    }
+    /**
+     * @returns {number}
+     */
+    get filter_strength() {
+        const ret = wasm.__wbg_get_webpadvancedparams_filter_strength(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} arg0
+     */
+    set filter_strength(arg0) {
+        wasm.__wbg_set_webpadvancedparams_filter_strength(this.__wbg_ptr, arg0);
+    }
+    /**
+     * @returns {number}
+     */
+    get filter_sharpness() {
+        const ret = wasm.__wbg_get_webpadvancedparams_filter_sharpness(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} arg0
+     */
+    set filter_sharpness(arg0) {
+        wasm.__wbg_set_webpadvancedparams_filter_sharpness(this.__wbg_ptr, arg0);
+    }
+    /**
+     * @returns {number}
+     */
+    get sns_strength() {
+        const ret = wasm.__wbg_get_webpadvancedparams_sns_strength(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @param {number} arg0
+     */
+    set sns_strength(arg0) {
+        wasm.__wbg_set_webpadvancedparams_sns_strength(this.__wbg_ptr, arg0);
+    }
+}
+if (Symbol.dispose) WebPAdvancedParams.prototype[Symbol.dispose] = WebPAdvancedParams.prototype.free;
 
 /**
  *
