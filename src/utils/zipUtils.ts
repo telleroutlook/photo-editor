@@ -34,23 +34,6 @@ export function getMimeTypeFromFileName(fileName: string): string {
 }
 
 /**
- * Generate output filename based on operation
- */
-function generateOutputFileName(
-  originalFileName: string,
-  operation: string,
-  index?: number
-): string {
-  const nameWithoutExt = originalFileName.replace(/\.[^/.]+$/, '');
-  const ext = originalFileName.split('.').pop() || 'jpg';
-
-  if (index !== undefined) {
-    return `${nameWithoutExt}_${operation}_${index}.${ext}`;
-  }
-  return `${nameWithoutExt}_${operation}.${ext}`;
-}
-
-/**
  * Export processed images as ZIP archive
  */
 export async function exportAsZip(
@@ -62,17 +45,15 @@ export async function exportAsZip(
   options: ZipExportOptions = {}
 ): Promise<Blob> {
   const {
-    zipFileName = 'processed_images.zip',
     compressionLevel = 6,
     includeOriginal = false,
-    comment = 'Processed with Photo Editor',
   } = options;
 
   // Create new ZIP archive
   const zip = new JSZip();
 
   // Add processed images to ZIP
-  files.forEach((file, index) => {
+  files.forEach((file, _index) => {
     const mimeType = getMimeTypeFromFileName(file.fileName);
     const blob = arrayBufferToBlob(file.imageData, mimeType);
 

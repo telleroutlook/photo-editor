@@ -1,0 +1,15 @@
+# Test files
+src/pages/WasmTest.tsx
+src/pages/WasmTestSimple.tsx
+src/utils/mockWasm.ts
+
+# Test files
+*.test.ts
+*.test.tsx
+
+# Build output
+dist/
+node_modules/
+
+# Worker files with WASM interfaces (allow any types for WASM exports)
+# These will be checked manually

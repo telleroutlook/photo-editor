@@ -92,7 +92,7 @@ async function processImage(
         throw new Error(`Unknown operation: ${batchParams.operation}`);
     }
 
-    const processingTime = performance.now() - startTime;
+    void (performance.now() - startTime); // Processing time calculated but not currently used
 
     return {
       imageId,
@@ -253,47 +253,50 @@ function getStatus(): {
 }
 
 // Stub functions for actual processing (will be implemented with dedicated workers)
-async function processCrop(imageData: Uint8Array, width: number, height: number, params: any): Promise<ArrayBuffer> {
+async function processCrop(_imageData: Uint8Array, _width: number, _height: number, _params: any): Promise<ArrayBuffer> {
   // TODO: Call core worker
   throw new Error('Not implemented - will integrate with core worker');
 }
 
-async function processRotate(imageData: Uint8Array, width: number, height: number, params: any): Promise<ArrayBuffer> {
+async function processRotate(_imageData: Uint8Array, _width: number, _height: number, _params: any): Promise<ArrayBuffer> {
   // TODO: Call core worker
   throw new Error('Not implemented - will integrate with core worker');
 }
 
-async function processFlip(imageData: Uint8Array, width: number, height: number, params: any): Promise<ArrayBuffer> {
+async function processFlip(_imageData: Uint8Array, _width: number, _height: number, _params: any): Promise<ArrayBuffer> {
   // TODO: Call core worker
   throw new Error('Not implemented - will integrate with core worker');
 }
 
 async function processResize(
-  imageData: Uint8Array,
-  width: number,
-  height: number,
-  params: any
+  _imageData: Uint8Array,
+  _width: number,
+  _height: number,
+  _params: any
 ): Promise<{ imageData: ArrayBuffer; width: number; height: number }> {
   // TODO: Call core worker
   throw new Error('Not implemented - will integrate with core worker');
 }
 
-async function processCompress(imageData: Uint8Array, width: number, height: number, params: any): Promise<ArrayBuffer> {
+async function processCompress(_imageData: Uint8Array, _width: number, _height: number, _params: any): Promise<ArrayBuffer> {
   // TODO: Call compress worker
   throw new Error('Not implemented - will integrate with compress worker');
 }
 
-async function processBgRemove(imageData: Uint8Array, width: number, height: number, params: any): Promise<ArrayBuffer> {
+async function processBgRemove(_imageData: Uint8Array, _width: number, _height: number, _params: any): Promise<ArrayBuffer> {
   // TODO: Call bgremove worker
   throw new Error('Not implemented - will integrate with bgremove worker');
 }
 
 // Expose functions using Comlink
-expose({
+const workerApi = {
   init,
   processBatch,
   cancelBatch,
   getStatus,
-});
+};
 
-export type BatchWorkerApi = typeof import('./batchWorker');
+expose(workerApi);
+
+// Export explicit type for Comlink
+export type BatchWorkerApi = typeof workerApi;

@@ -110,7 +110,7 @@ export const CompressTool = () => {
       // Convert Uint8Array to regular ArrayBuffer to avoid SharedArrayBuffer issues
       const buffer = new ArrayBuffer(result.imageData.length);
       new Uint8Array(buffer).set(result.imageData);
-      const compressedFile = new File([buffer], newName, { type: mimeType });
+      void new File([buffer], newName, { type: mimeType });
 
       // Display success message
       const mode = targetSize ? 'Target Size' : 'Quality';

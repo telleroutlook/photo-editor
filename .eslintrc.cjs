@@ -17,4 +17,18 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
+  overrides: [
+    {
+      // Allow 'any' type for WASM interfaces in worker files
+      files: [
+        '**/workers/*.ts',
+        '**/hooks/*Worker.ts',
+        '**/hooks/*Processor.ts',
+        '**/utils/wasm*.ts'
+      ],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'off',
+      },
+    },
+  ],
 }

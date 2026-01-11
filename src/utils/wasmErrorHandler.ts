@@ -160,9 +160,9 @@ export class WasmErrorHandler {
   static getMemoryUsage(): { used: number; limit: number; percentage: number } {
     // @ts-expect-error - performance.memory is non-standard but available in Chrome/Edge
     if (performance.memory) {
-      // @ts-expect-error
+      // @ts-expect-error - accessing non-standard performance.memory API
       const used = performance.memory.usedJSHeapSize;
-      // @ts-expect-error
+      // @ts-expect-error - accessing non-standard performance.memory API
       const limit = performance.memory.jsHeapSizeLimit;
       return {
         used,

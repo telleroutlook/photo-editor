@@ -14,7 +14,7 @@ interface UseWasmWorkerOptions {
 }
 
 interface UseWasmWorkerReturn {
-  sendMessage: <T = unknown>(message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>) => Promise<WorkerResponse<T>>;
+  sendMessage: <TPayload = unknown, TResponse = unknown>(message: Omit<WorkerMessage<TPayload>, 'id' | 'timestamp'>) => Promise<WorkerResponse<TResponse>>;
   loading: boolean;
   error: Error | null;
   initialized: boolean;
@@ -149,9 +149,9 @@ export function useWasmWorker({
   /**
    * Send message to worker
    */
-  const sendMessage = useCallback(<T = unknown>(
-    message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>
-  ): Promise<WorkerResponse<T>> => {
+  const sendMessage = useCallback(<TPayload = unknown, TResponse = unknown>(
+    message: Omit<WorkerMessage<TPayload>, 'id' | 'timestamp'>
+  ): Promise<WorkerResponse<TResponse>> => {
     return new Promise((resolve, reject) => {
       if (!workerRef.current) {
         reject(new Error('Worker not initialized'));
@@ -159,7 +159,7 @@ export function useWasmWorker({
       }
 
       const id = generateId();
-      const fullMessage: WorkerMessage<T> = {
+      const fullMessage: WorkerMessage<TPayload> = {
         ...message,
         id,
         timestamp: Date.now(),
@@ -167,7 +167,7 @@ export function useWasmWorker({
 
       // Set up handler for this message
       messageHandlersRef.current.set(id, (response: WorkerResponse<unknown>) => {
-        const typedResponse = response as WorkerResponse<T>;
+        const typedResponse = response as WorkerResponse<TResponse>;
         if (typedResponse.success) {
           resolve(typedResponse);
         } else {
@@ -215,12 +215,13 @@ export function useWasmWorker({
     };
 
     // Wrap onMessage to handle initialization
-    const _wrappedOnMessage = (response: WorkerResponse) => {
-      handleInitMessage(response);
+    // Note: _wrappedOnMessage defined for future use in message interception
+    void ((_response: WorkerResponse) => {
+      handleInitMessage(_response);
       if (onMessage) {
-        onMessage(response);
+        onMessage(_response);
       }
-    };
+    });
 
     return () => {
       // Cleanup

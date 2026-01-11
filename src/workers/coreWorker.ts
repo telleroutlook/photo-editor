@@ -83,13 +83,13 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    const bytesWritten = await wasmModule.crop_image(
+    void (await wasmModule.crop_image(
       input,
       width,
       height,
       cropRect,
       output
-    );
+    )); // Return value not currently used
 
     // Create new ImageData from output
     const newImageData = new ImageData(

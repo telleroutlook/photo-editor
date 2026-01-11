@@ -126,9 +126,9 @@ export function useCompressWorker(): UseCompressWorkerReturn {
   /**
    * Send message to worker
    */
-  const sendMessage = useCallback(<T = unknown>(
-    message: Omit<WorkerMessage<T>, 'id' | 'timestamp'>
-  ): Promise<WorkerResponse<T>> => {
+  const sendMessage = useCallback(<TPayload = unknown, TResponse = unknown>(
+    message: Omit<WorkerMessage<TPayload>, 'id' | 'timestamp'>
+  ): Promise<WorkerResponse<TResponse>> => {
     return new Promise((resolve, reject) => {
       if (!workerRef.current) {
         reject(new Error('Worker not initialized'));
@@ -136,7 +136,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       }
 
       const id = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      const fullMessage: WorkerMessage<T> = {
+      const fullMessage: WorkerMessage<TPayload> = {
         ...message,
         id,
         timestamp: Date.now(),
@@ -144,7 +144,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
 
       messageHandlersRef.current.set(id, (response: WorkerResponse) => {
         if (response.success) {
-          resolve(response as WorkerResponse<T>);
+          resolve(response as WorkerResponse<TResponse>);
         } else {
           reject(new Error(response.error || 'Operation failed'));
         }
@@ -173,15 +173,15 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       advancedParams?: JpegAdvancedParams
     ): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<CompressResult>({
+        const response = await sendMessage<CompressJpegPayload, CompressResult>({
           type: MessageType.COMPRESS_JPEG,
           payload: {
             imageData,
             width,
             height,
             quality,
-            advancedParams, // Pass advanced parameters to worker
-          } as CompressJpegPayload,
+            advancedParams,
+          },
         });
 
         if (!response.success || !response.data) {
@@ -213,15 +213,15 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       advancedParams?: WebPAdvancedParams
     ): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<CompressResult>({
+        const response = await sendMessage<CompressWebpPayload, CompressResult>({
           type: MessageType.COMPRESS_WEBP,
           payload: {
             imageData,
             width,
             height,
             quality,
-            advancedParams, // Pass advanced parameters to worker
-          } as CompressWebpPayload,
+            advancedParams,
+          },
         });
 
         if (!response.success || !response.data) {
@@ -254,7 +254,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       format: CompressionFormat
     ): Promise<CompressResult & { quality: number }> => {
       try {
-        const response = await sendMessage<CompressResult & { quality: number }>({
+        const response = await sendMessage<CompressToSizePayload, CompressResult & { quality: number }>({
           type: MessageType.COMPRESS_TO_SIZE,
           payload: {
             imageData,
@@ -262,7 +262,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
             height,
             targetSize,
             format,
-          } as CompressToSizePayload,
+          },
         });
 
         if (!response.success || !response.data) {
@@ -288,7 +288,7 @@ export function useCompressWorker(): UseCompressWorkerReturn {
   const compressPng = useCallback(
     async (imageData: Uint8Array, width: number, height: number, quality: number): Promise<CompressResult> => {
       try {
-        const response = await sendMessage<CompressResult>({
+        const response = await sendMessage<{ imageData: Uint8Array; width: number; height: number; quality: number }, CompressResult>({
           type: MessageType.COMPRESS_PNG,
           payload: {
             imageData,

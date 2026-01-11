@@ -81,7 +81,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       feather?: number
     ): Promise<RemoveSolidColorResult> => {
       try {
-        const response = await sendMessage<RemoveSolidColorResult>({
+        const response = await sendMessage<RemoveSolidColorPayload, RemoveSolidColorResult>({
           type: MessageType.REMOVE_SOLID_COLOR,
           payload: {
             imageData,
@@ -90,7 +90,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
             targetColor,
             tolerance: tolerance ?? 30,
             feather: feather ?? 0,
-          } as RemoveSolidColorPayload,
+          },
         });
 
         if (!response.success || !response.data) {
@@ -124,7 +124,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       connected?: boolean
     ): Promise<MagicWandResult> => {
       try {
-        const response = await sendMessage<MagicWandResult>({
+        const response = await sendMessage<MagicWandSelectPayload, MagicWandResult>({
           type: MessageType.MAGIC_WAND_SELECT,
           payload: {
             imageData,
@@ -134,7 +134,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
             seedY,
             tolerance: tolerance ?? 30,
             connected: connected ?? true,
-          } as MagicWandSelectPayload,
+          },
         });
 
         if (!response.success || !response.data) {
@@ -169,7 +169,7 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
       iterations?: number
     ): Promise<GrabCutResult> => {
       try {
-        const response = await sendMessage<GrabCutResult>({
+        const response = await sendMessage<{ imageData: Uint8Array; width: number; height: number; rectX: number; rectY: number; rectWidth: number; rectHeight: number; iterations: number }, GrabCutResult>({
           type: MessageType.GRABCUT_SEGMENT,
           payload: {
             imageData,

@@ -121,15 +121,13 @@ export default defineConfig({
             return 'vendor-icons'
           }
 
-          // Zustand - state management
-          if (id.includes('node_modules/zustand')) {
-            return 'vendor-zustand'
-          }
-
-          // React and related packages (scheduler, etc.)
+          // React and related packages (scheduler, zustand, use-sync-external-store)
+          // Keep Zustand with React to ensure proper loading order
           if (id.includes('node_modules/react') ||
               id.includes('node_modules/react-dom') ||
-              id.includes('node_modules/scheduler')) {
+              id.includes('node_modules/scheduler') ||
+              id.includes('node_modules/zustand') ||
+              id.includes('node_modules/use-sync-external-store')) {
             return 'vendor-react'
           }
 

@@ -174,8 +174,10 @@ export interface GrabCutSegmentPayload {
   imageData: Uint8Array;
   width: number;
   height: number;
-  foregroundMask: Uint8Array;
-  backgroundMask: Uint8Array;
+  rectX: number;
+  rectY: number;
+  rectWidth: number;
+  rectHeight: number;
   iterations: number;
 }
 
