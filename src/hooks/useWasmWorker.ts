@@ -48,11 +48,13 @@ export function useWasmWorker({
     }
 
     try {
+      console.log('🔧 [useWasmWorker] Initializing worker with path:', workerPath);
       setLoading(true);
       setError(null);
 
       // Create worker instance
       const worker = new Worker(workerPath, { type: 'module' });
+      console.log('✅ [useWasmWorker] Worker created successfully');
 
       // Setup message handler
       worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
@@ -73,7 +75,18 @@ export function useWasmWorker({
 
       // Setup error handler
       worker.onerror = (event: ErrorEvent) => {
+        console.error('❌ [useWasmWorker] Worker error:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error,
+          stack: event.error?.stack
+        });
         const error = new Error(event.message || 'Worker error');
+        if (event.error) {
+          error.stack = event.error.stack;
+        }
         setError(error);
         setLoading(false);
 

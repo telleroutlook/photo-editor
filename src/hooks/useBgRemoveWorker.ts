@@ -69,7 +69,7 @@ interface UseBgRemoveWorkerReturn {
  */
 export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
   const { sendMessage, loading, error, initialized } = useWasmWorker({
-    workerPath: new URL('../workers/bgremoveWorker.ts', import.meta.url).href,
+    workerPath: new URL('../workers/bgremoveWorker.ts?worker&url', import.meta.url).href,
     autoInit: true,
   });
 

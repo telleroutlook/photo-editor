@@ -54,7 +54,7 @@ export function useBatchProcessor(options: UseBatchProcessorOptions = {}): UseBa
 
   // Initialize worker
   useEffect(() => {
-    const worker = new Worker(new URL('../workers/batchWorker.ts', import.meta.url), {
+    const worker = new Worker(new URL('../workers/batchWorker.ts?worker&url', import.meta.url), {
       type: 'module',
     });
     workerRef.current = worker;

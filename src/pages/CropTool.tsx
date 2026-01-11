@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { CropCanvas, CropControls } from '../components/crop';
 import { CropRect, MessageType } from '../types';
@@ -17,6 +17,38 @@ export const CropTool = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
 
+  // Debug logging (must be after all state declarations)
+  const cropToolRenderCountRef = useRef(0);
+  cropToolRenderCountRef.current += 1;
+  console.log(`🔄 CropTool render #${cropToolRenderCountRef.current}`, {
+    cropRect,
+    resultUrl,
+  });
+
+  // ✅ Store initial crop rect once and never change it
+  const initialCropRectRef = useRef<CropRect>({
+    x: 0,
+    y: 0,
+    width: selectedImage?.width ?? 0,
+    height: selectedImage?.height ?? 0,
+  });
+
+  // ✅ Must be before any conditional returns (React Hooks rule)
+  const handleCropChange = useCallback((rect: CropRect) => {
+    console.log('📦 handleCropChange in CropTool:', rect);
+    setCropRect(rect);
+  }, []);
+
+  // ✅ Memoize imageData to prevent unnecessary re-renders
+  const imageData = useMemo(
+    () => ({
+      url: selectedImage?.url ?? '',
+      width: selectedImage?.width ?? 0,
+      height: selectedImage?.height ?? 0,
+    }),
+    [selectedImage?.url, selectedImage?.width, selectedImage?.height]
+  );
+
   // Cleanup result URL on unmount
   useEffect(() => {
     return () => {
@@ -34,10 +66,6 @@ export const CropTool = () => {
       </div>
     );
   }
-
-  const handleCropChange = (rect: CropRect) => {
-    setCropRect(rect);
-  };
 
   const handleApplyCrop = async () => {
     setIsProcessing(true);
@@ -167,13 +195,9 @@ export const CropTool = () => {
       {/* Crop Canvas */}
       <CropCanvas
         imageId={selectedImage.id}
-        imageData={{
-          url: selectedImage.url,
-          width: selectedImage.width,
-          height: selectedImage.height,
-        }}
+        imageData={imageData}
         onCropChange={handleCropChange}
-        initialCropRect={cropRect}
+        initialCropRect={initialCropRectRef.current}
       />
 
       {/* Crop Controls */}

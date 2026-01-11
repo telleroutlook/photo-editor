@@ -1,83 +1,26 @@
-use image::{ImageBuffer, RgbaImage, DynamicImage, ImageEncoder};
-use image::codecs::webp::WebPEncoder;
-use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
 /**
- * Compress RGBA image data to WebP format
+ * WebP compression stub - Returns error to force Canvas fallback
  *
- * # Arguments
- * * `input` - RGBA image data (4 bytes per pixel, row-major order)
- * * `width` - Image width in pixels
- * * `height` - Image height in pixels
- * * `quality` - WebP quality (1-100)
- * * `output` - Output buffer for compressed WebP data
+ * WebP lossy compression is handled by browser's native OffscreenCanvas API
+ * which provides better quality and performance than WASM-based solutions.
  *
- * # Returns
- * Ok(number_of_bytes_written) on success
- * Err(error_message) on failure
+ * The compressWorker will automatically fall back to Canvas-based WebP encoding
+ * which supports lossy compression with quality control.
  */
 pub fn compress_to_webp(
-    input: &[u8],
-    width: u32,
-    height: u32,
-    quality: u8,
-    output: &mut [u8],
+    _input: &[u8],
+    _width: u32,
+    _height: u32,
+    _quality: u8,
+    _output: &mut [u8],
 ) -> Result<usize, &'static str> {
-    web_sys::console::log_1(&format!("compress_to_webp: {}x{}, quality={}", width, height, quality).into());
+    web_sys::console::log_1(&"WebP: Using browser native Canvas encoding (lossy supported)".into());
 
-    // Create RGBA image from input buffer
-    let rgba_image: RgbaImage =
-        match ImageBuffer::from_raw(width, height, input.to_vec()) {
-            Some(img) => {
-                web_sys::console::log_1(&"ImageBuffer created successfully".into());
-                img
-            },
-            None => {
-                web_sys::console::log_1(&"Failed to create ImageBuffer".into());
-                return Err("Failed to create image buffer from input data");
-            }
-        };
-
-    let dynamic_image = DynamicImage::ImageRgba8(rgba_image);
-
-    web_sys::console::log_1(&"Creating WebP encoder...".into());
-
-    // Encode to WebP
-    let mut buffer = Cursor::new(Vec::new());
-
-    // Use lossless WebP encoding (image crate 0.25 only supports lossless)
-    web_sys::console::log_1(&"Using lossless WebP encoding".into());
-    let encoder = WebPEncoder::new_lossless(&mut buffer);
-
-    web_sys::console::log_1(&"Encoding image...".into());
-
-    match encoder.write_image(
-        dynamic_image.as_bytes(),
-        width,
-        height,
-        image::ExtendedColorType::Rgba8,  // WebP supports RGBA
-    ) {
-        Ok(_) => {
-            let webp_data = buffer.into_inner();
-            web_sys::console::log_2(&"WebP encoded successfully, size:".into(), &webp_data.len().into());
-
-            // Copy to output buffer
-            if webp_data.len() > output.len() {
-                web_sys::console::log_2(&"Output buffer too small".into(),
-                    &format!("needed {}, got {}", webp_data.len(), output.len()).into());
-                return Err("Output buffer too small for compressed data");
-            }
-
-            output[..webp_data.len()].copy_from_slice(&webp_data);
-            web_sys::console::log_2(&"Compression complete, copied".into(), &webp_data.len().into());
-            Ok(webp_data.len())
-        }
-        Err(e) => {
-            web_sys::console::log_1(&format!("WebP encoding error: {:?}", e).into());
-            Err("WebP encoding failed")
-        }
-    }
+    // Return 0 to signal the worker to use Canvas fallback
+    // This ensures WebP compression uses browser's native implementation
+    Ok(0)
 }
 
 #[cfg(test)]

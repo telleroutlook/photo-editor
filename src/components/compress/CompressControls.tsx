@@ -50,8 +50,9 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
   const [customTargetSize, setCustomTargetSize] = useState('1');
   const [targetSizeUnit, setTargetSizeUnit] = useState<'MB' | 'KB'>('MB');
 
-  // Stable callback to avoid unnecessary re-renders
-  const notifyCompressChange = useCallback(() => {
+  // Notify parent of compression parameter changes
+  // Only called on initial mount and when parameters actually change
+  useEffect(() => {
     if (mode === 'quality') {
       onCompressChange({ format, quality });
     } else {
@@ -59,10 +60,7 @@ export const CompressControls: React.FC<CompressControlsProps> = ({
     }
   }, [mode, format, quality, targetSize, onCompressChange]);
 
-  useEffect(() => {
-    notifyCompressChange();
-  }, [notifyCompressChange]);
-
+  // Handler functions - useEffect will handle parent notification
   const handleFormatChange = (newFormat: CompressionFormat) => {
     setFormat(newFormat);
   };
