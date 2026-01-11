@@ -85,12 +85,29 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       const width = containerWidth;
       const height = imageData.height * scale;
 
-      setCanvasSize({ width, height });
+      // ✅ Only update if change is significant (more than 1px threshold)
+      setCanvasSize((prev) => {
+        if (Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1) {
+          return prev; // Avoid unnecessary updates
+        }
+        return { width, height };
+      });
     };
 
     updateCanvasSize();
-    window.addEventListener('resize', updateCanvasSize);
-    return () => window.removeEventListener('resize', updateCanvasSize);
+
+    // ✅ Use throttle to avoid frequent resize calls
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updateCanvasSize, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [imageData.width, imageData.height]);
 
   // ✅ Use refs to store latest values and avoid dependency chains
@@ -294,7 +311,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         console.warn('Error during image cleanup:', err);
       }
     };
-  }, [imageData.url, canvasSize, imageLoaded]);  // ✅ Added imageLoaded to dependencies
+  }, [imageData.url, canvasSize]);  // ✅ Removed imageLoaded to prevent circular dependency
 
   // Update crop rectangle when aspect ratio changes
   useEffect(() => {

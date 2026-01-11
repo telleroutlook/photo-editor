@@ -497,7 +497,15 @@ function App() {
   // ============= CROP TOOL HANDLERS =============
   const handleCropChange = useCallback((rect: CropRect) => {
     console.log('📦 handleCropChange:', rect);
-    setCropRect(rect);
+
+    // ✅ Only update if values actually changed
+    setCropRect((prev) => {
+      if (prev.x === rect.x && prev.y === rect.y &&
+          prev.width === rect.width && prev.height === rect.height) {
+        return prev; // Avoid unnecessary updates
+      }
+      return rect;
+    });
   }, []);
 
   const handleApplyCrop = useCallback(async () => {
