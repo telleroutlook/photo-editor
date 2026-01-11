@@ -176,6 +176,12 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
     const canvas = fabricCanvasRef.current;
 
+    // ✅ Guard: Ensure canvas is valid and not disposed
+    if (!canvas.getElement || typeof canvas.clear !== 'function') {
+      console.warn('⚠️ Canvas is not ready or has been disposed, skipping image load');
+      return;
+    }
+
     // ✅ Guard: Prevent reloading if image is already loaded and size hasn't changed
     if (imageLoaded && canvas.getObjects().length > 0) {
       const hasImage = canvas.getObjects().some(obj => obj.type === 'image');
@@ -190,12 +196,24 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     FabricImage.fromURL(imageData.url, {
       crossOrigin: 'anonymous',
     }).then((img) => {
-      if (!img) return;
+      if (!img || !fabricCanvasRef.current) return;
+
+      // ✅ Re-check canvas validity before manipulation
+      const currentCanvas = fabricCanvasRef.current;
+      if (!currentCanvas.getElement || typeof currentCanvas.clear !== 'function') {
+        console.warn('⚠️ Canvas became invalid during image load');
+        return;
+      }
 
       // Clear existing objects and set background color
-      canvas.clear();
-      canvas.backgroundColor = '#1f2937';
-      canvas.renderAll();
+      try {
+        currentCanvas.clear();
+        currentCanvas.backgroundColor = '#1f2937';
+        currentCanvas.renderAll();
+      } catch (err) {
+        console.error('Failed to clear canvas:', err);
+        return;
+      }
 
       // Scale image to fit canvas
       const scale = canvasSize.width / (img.width || 1);
@@ -209,12 +227,12 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         evented: false,
       });
 
-      canvas.add(img);
+      currentCanvas.add(img);
       // Ensure image is at the bottom by re-adding it first
-      const objs = canvas.getObjects();
+      const objs = currentCanvas.getObjects();
       if (objs.length > 1) {
-        canvas.remove(img);
-        canvas.add(img);
+        currentCanvas.remove(img);
+        currentCanvas.add(img);
         img.selectable = false;
         img.evented = false;
       }
@@ -251,8 +269,8 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       });
 
       cropRectRef.current = cropRect;
-      canvas.add(cropRect);
-      canvas.setActiveObject(cropRect);
+      currentCanvas.add(cropRect);
+      currentCanvas.setActiveObject(cropRect);
 
       // Update parent with initial crop rect
       updateCropRectRef.current?.();
@@ -264,11 +282,17 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
     return () => {
       // Cleanup image objects
-      canvas.getObjects().forEach((obj) => {
-        if (obj.type === 'image') {
-          obj.dispose?.();
-        }
-      });
+      if (!fabricCanvasRef.current) return;
+
+      try {
+        fabricCanvasRef.current.getObjects().forEach((obj) => {
+          if (obj.type === 'image') {
+            obj.dispose?.();
+          }
+        });
+      } catch (err) {
+        console.warn('Error during image cleanup:', err);
+      }
     };
   }, [imageData.url, canvasSize, imageLoaded]);  // ✅ Added imageLoaded to dependencies
 

@@ -20,11 +20,18 @@ async function initWasm(): Promise<void> {
   }
 
   try {
-    console.log('🔄 Loading BgRemove WASM module...');
+    console.log('🔄 [BgRemoveWorker] Loading BgRemove WASM module...');
 
-    // Dynamically import the compiled WASM module
-    const wasmUrl = new URL('/wasm/bgremove/photo_editor_bgremove.js', import.meta.url);
-    const wasm = await import(wasmUrl.href);
+    // Dynamically import the compiled WASM module from public directory
+    // Note: In production, public/ is served from root, so path is /wasm/...
+    const wasmPath = '/wasm/bgremove/photo_editor_bgremove.js';
+    console.log('📦 [BgRemoveWorker] Import path:', wasmPath);
+
+    // Use dynamic import with absolute URL for production compatibility
+    const wasmUrl = new URL(wasmPath, self.location.origin);
+    const wasm = await import(/* @vite-ignore */ wasmUrl.href);
+
+    console.log('📚 [BgRemoveWorker] WASM JS file loaded, initializing...');
 
     // Initialize the WASM module
     await wasm.default();
@@ -32,8 +39,8 @@ async function initWasm(): Promise<void> {
     // Store the initialized module
     wasmModule = wasm as unknown as BgRemoveWasmApi;
 
-    console.log('✅ BgRemove WASM module loaded successfully');
-    console.log('📦 Module exports:', Object.keys(wasm));
+    console.log('✅ [BgRemoveWorker] BgRemove WASM module loaded successfully');
+    console.log('📦 [BgRemoveWorker] Module exports:', Object.keys(wasm));
 
     initialized = true;
 
@@ -49,7 +56,12 @@ async function initWasm(): Promise<void> {
       processingTime: 0,
     });
   } catch (error) {
-    console.error('❌ Failed to load BgRemove WASM module:', error);
+    console.error('❌ [BgRemoveWorker] Failed to load BgRemove WASM module:', error);
+    console.error('🔍 [BgRemoveWorker] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
     sendMessage({
       id: generateId(),
       type: MessageType.INIT_WORKER,
