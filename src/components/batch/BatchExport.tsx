@@ -35,10 +35,10 @@ export function BatchExport({ batchParams }: BatchExportProps) {
   // Prepare tasks for batch processing
   const prepareTasks = useCallback(() => {
     return images
-      .filter((img) => selectedIds.has(img.id))
+      .filter((img) => selectedIds.has(img.id) && img.data !== undefined)
       .map((image) => ({
         imageId: image.id,
-        imageData: image.data,
+        imageData: image.data!,
         width: image.width,
         height: image.height,
         fileName: image.fileName,
@@ -80,15 +80,17 @@ export function BatchExport({ batchParams }: BatchExportProps) {
         };
 
         if (includeOriginal) {
-          const originalImage = images.find((img) => img.id === item.imageId)!;
-          const uint8Array = originalImage.data;
-          // Create a new ArrayBuffer to avoid SharedArrayBuffer
-          const arrayBuffer = new ArrayBuffer(uint8Array.length);
-          new Uint8Array(arrayBuffer).set(uint8Array);
-          result.originalFile = {
-            fileName: `original_${item.fileName}`,
-            imageData: arrayBuffer,
-          };
+          const originalImage = images.find((img) => img.id === item.imageId);
+          const uint8Array = originalImage?.data;
+          if (uint8Array) {
+            // Create a new ArrayBuffer to avoid SharedArrayBuffer
+            const arrayBuffer = new ArrayBuffer(uint8Array.length);
+            new Uint8Array(arrayBuffer).set(uint8Array);
+            result.originalFile = {
+              fileName: `original_${item.fileName}`,
+              imageData: arrayBuffer,
+            };
+          }
         }
 
         return result;

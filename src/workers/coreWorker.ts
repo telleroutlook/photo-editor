@@ -4,7 +4,16 @@
  * Processes crop, rotate, flip, and resize operations
  */
 
-import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
+import {
+  MessageType,
+  WorkerMessage,
+  WorkerResponse,
+  generateMessageId,
+  CropImagePayload,
+  RotateImagePayload,
+  FlipImagePayload,
+  ResizeImagePayload,
+} from '../types';
 import type { CoreWasmApi } from '../types';
 
 // Worker state
@@ -64,7 +73,7 @@ async function initWasm(): Promise<void> {
 /**
  * Handle crop image operation
  */
-async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
+async function handleCropImage(message: WorkerMessage<CropImagePayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -87,9 +96,8 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
       throw new Error('WASM module not initialized');
     }
 
-    // ✅ Create CropRect instance using WASM-exported class
-    // After recompiling with constructor, this will work correctly
-    const wasmCropRect = new (wasmModule as any).CropRect(
+    // Create CropRect instance using WASM-exported class (type-safe)
+    const wasmCropRect = new wasmModule.CropRect(
       cropRect.x,
       cropRect.y,
       cropRect.width,
@@ -137,7 +145,7 @@ async function handleCropImage(message: WorkerMessage<any>): Promise<void> {
 /**
  * Handle rotate image operation
  */
-async function handleRotateImage(message: WorkerMessage<any>): Promise<void> {
+async function handleRotateImage(message: WorkerMessage<RotateImagePayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -203,7 +211,7 @@ async function handleRotateImage(message: WorkerMessage<any>): Promise<void> {
 /**
  * Handle flip image operation
  */
-async function handleFlipImage(message: WorkerMessage<any>): Promise<void> {
+async function handleFlipImage(message: WorkerMessage<FlipImagePayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -260,7 +268,7 @@ async function handleFlipImage(message: WorkerMessage<any>): Promise<void> {
 /**
  * Handle resize image operation
  */
-async function handleResizeImage(message: WorkerMessage<any>): Promise<void> {
+async function handleResizeImage(message: WorkerMessage<ResizeImagePayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -326,7 +334,7 @@ function sendMessage(response: WorkerResponse): void {
 /**
  * Message handler
  */
-self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+self.onmessage = async (event: MessageEvent<WorkerMessage<unknown>>) => {
   const message = event.data;
 
   switch (message.type) {
@@ -335,19 +343,19 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       break;
 
     case MessageType.CROP_IMAGE:
-      await handleCropImage(message);
+      await handleCropImage(message as WorkerMessage<CropImagePayload>);
       break;
 
     case MessageType.ROTATE_IMAGE:
-      await handleRotateImage(message);
+      await handleRotateImage(message as WorkerMessage<RotateImagePayload>);
       break;
 
     case MessageType.FLIP_IMAGE:
-      await handleFlipImage(message);
+      await handleFlipImage(message as WorkerMessage<FlipImagePayload>);
       break;
 
     case MessageType.RESIZE_IMAGE:
-      await handleResizeImage(message);
+      await handleResizeImage(message as WorkerMessage<ResizeImagePayload>);
       break;
 
     case MessageType.TERMINATE_WORKER:

@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useAppStore } from './store/appStore';
 import { useImageStore } from './store/imageStore';
+import { showSuccessToast, showErrorToast, showWarningToast } from './store/toastStore';
+import { ToastContainer } from './components/common/Toast';
 import { WorkspaceLayout } from './layouts/WorkspaceLayout';
 import { FileList } from './components/upload/FileList';
 import { UploadZone } from './components/upload/UploadZone';
@@ -144,7 +146,7 @@ function App() {
 
   const handleApplyCompress = useCallback(async () => {
     if (!currentImage) {
-      alert('No image selected');
+      showWarningToast('No Image', 'Please select an image first');
       return;
     }
 
@@ -213,25 +215,26 @@ function App() {
       const formatLabel = format === CompressionFormat.WebP ? 'WebP' : format === CompressionFormat.JPEG ? 'JPEG' : 'PNG';
       const savings = Math.round(((currentImage.file.size - result.size) / currentImage.file.size) * 100);
 
-      let message = `✅ Compression complete!\n\n`;
-      message += `Format: ${formatLabel}\n`;
-      message += `Original: ${formatBytes(currentImage.file.size)}\n`;
-      message += `Compressed: ${formatBytes(result.size)}\n`;
-      message += `Quality: ${result.quality}%\n`;
-      message += `Space saved: ${savings}%\n`;
-      message += `Mode: ${mode}`;
+      const details = [
+        `Format: ${formatLabel}`,
+        `Original: ${formatBytes(currentImage.file.size)}`,
+        `Compressed: ${formatBytes(result.size)}`,
+        `Quality: ${result.quality}%`,
+        `Space saved: ${savings}%`,
+        `Mode: ${mode}`,
+      ];
 
       if (targetSize) {
-        message += `\nTarget: ${formatBytes(targetSize)}`;
+        details.push(`Target: ${formatBytes(targetSize)}`);
       }
 
-      message += `\n\n📥 File downloaded: ${newName}`;
+      details.push(`File: ${newName}`);
 
-      alert(message);
+      showSuccessToast('Compression Complete', details.join('\n'));
     } catch (error) {
       console.error('Compression failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`❌ Compression failed: ${errorMessage}\n\nPlease try again or check the browser console for details.`);
+      showErrorToast('Compression Failed', errorMessage);
     } finally {
       setIsCompressing(false);
     }
@@ -260,7 +263,7 @@ function App() {
 
       // Skip if dimensions are unchanged
       if (newWidth === currentImage.width && newHeight === currentImage.height) {
-        alert('Image dimensions are unchanged. Please adjust the size first.');
+        showWarningToast('No Changes', 'Image dimensions are unchanged. Please adjust the size first.');
         return;
       }
 
@@ -294,25 +297,25 @@ function App() {
           downloadImage(blob, currentImage.file.name, 'resized', 'png');
 
           const scale = Math.round((newWidth / currentImage.width) * 100);
-          const message = `✅ Resize complete!\n\n` +
-            `Original: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Resized: ${newWidth} × ${newHeight} px\n` +
-            `Scale: ${scale}%\n` +
-            `Quality: ${quality === ResizeQuality.High ? 'High (Bicubic)' : 'Fast (Bilinear)'}\n\n` +
-            `📥 File downloaded`;
+          const details = [
+            `Original: ${currentImage.width} x ${currentImage.height} px`,
+            `Resized: ${newWidth} x ${newHeight} px`,
+            `Scale: ${scale}%`,
+            `Quality: ${quality === ResizeQuality.High ? 'High (Bicubic)' : 'Fast (Bilinear)'}`,
+          ];
 
-          alert(message);
+          showSuccessToast('Resize Complete', details.join('\n'));
         }
       }, 'image/png');
 
-      console.log('✅ Resize applied successfully', {
-        from: `${currentImage.width}×${currentImage.height}`,
-        to: `${newWidth}×${newHeight}`,
+      console.log('Resize applied successfully', {
+        from: `${currentImage.width}x${currentImage.height}`,
+        to: `${newWidth}x${newHeight}`,
         quality,
       });
     } catch (error) {
-      console.error('❌ Resize failed:', error);
-      alert(`Resize failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Resize failed:', error);
+      showErrorToast('Resize Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsResizing(false);
     }
@@ -365,24 +368,24 @@ function App() {
         if (blob) {
           downloadImage(blob, currentImage.file.name, `rotated_${angle}deg`, 'png');
 
-          const message = `✅ Rotation complete!\n\n` +
-            `Angle: ${angle}°\n` +
-            `Original: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Result: ${result.width} × ${result.height} px\n\n` +
-            `📥 File downloaded`;
+          const details = [
+            `Angle: ${angle}deg`,
+            `Original: ${currentImage.width} x ${currentImage.height} px`,
+            `Result: ${result.width} x ${result.height} px`,
+          ];
 
-          alert(message);
+          showSuccessToast('Rotation Complete', details.join('\n'));
         }
       }, 'image/png');
 
-      console.log('✅ Rotation applied successfully', {
+      console.log('Rotation applied successfully', {
         angle,
-        from: `${currentImage.width}×${currentImage.height}`,
-        to: `${result.width}×${result.height}`,
+        from: `${currentImage.width}x${currentImage.height}`,
+        to: `${result.width}x${result.height}`,
       });
     } catch (error) {
-      console.error('❌ Rotation failed:', error);
-      alert(`Rotation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Rotation failed:', error);
+      showErrorToast('Rotation Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
     }
@@ -421,19 +424,14 @@ function App() {
       resultCanvas.toBlob((blob) => {
         if (blob) {
           downloadImage(blob, currentImage.file.name, 'flipped_horizontal', 'png');
-
-          const message = `✅ Horizontal flip complete!\n\n` +
-            `Size: ${currentImage.width} × ${currentImage.height} px\n\n` +
-            `📥 File downloaded`;
-
-          alert(message);
+          showSuccessToast('Horizontal Flip Complete', `Size: ${currentImage.width} x ${currentImage.height} px`);
         }
       }, 'image/png');
 
-      console.log('✅ Horizontal flip applied successfully');
+      console.log('Horizontal flip applied successfully');
     } catch (error) {
-      console.error('❌ Flip failed:', error);
-      alert(`Flip failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Flip failed:', error);
+      showErrorToast('Flip Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
     }
@@ -472,19 +470,14 @@ function App() {
       resultCanvas.toBlob((blob) => {
         if (blob) {
           downloadImage(blob, currentImage.file.name, 'flipped_vertical', 'png');
-
-          const message = `✅ Vertical flip complete!\n\n` +
-            `Size: ${currentImage.width} × ${currentImage.height} px\n\n` +
-            `📥 File downloaded`;
-
-          alert(message);
+          showSuccessToast('Vertical Flip Complete', `Size: ${currentImage.width} x ${currentImage.height} px`);
         }
       }, 'image/png');
 
-      console.log('✅ Vertical flip applied successfully');
+      console.log('Vertical flip applied successfully');
     } catch (error) {
-      console.error('❌ Flip failed:', error);
-      alert(`Flip failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Flip failed:', error);
+      showErrorToast('Flip Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
     }
@@ -542,24 +535,24 @@ function App() {
         if (blob) {
           downloadImage(blob, currentImage.file.name, 'cropped', 'png');
 
-          const message = `✅ Crop complete!\n\n` +
-            `Original: ${currentImage.width} × ${currentImage.height} px\n` +
-            `Cropped: ${result.width} × ${result.height} px\n` +
-            `Crop region: x=${cropRect.x}, y=${cropRect.y}, w=${cropRect.width}, h=${cropRect.height}\n\n` +
-            `📥 File downloaded`;
+          const details = [
+            `Original: ${currentImage.width} x ${currentImage.height} px`,
+            `Cropped: ${result.width} x ${result.height} px`,
+            `Region: x=${cropRect.x}, y=${cropRect.y}, w=${cropRect.width}, h=${cropRect.height}`,
+          ];
 
-          alert(message);
+          showSuccessToast('Crop Complete', details.join('\n'));
         }
       }, 'image/png');
 
-      console.log('✅ Crop applied successfully', {
-        from: `${currentImage.width}×${currentImage.height}`,
-        to: `${result.width}×${result.height}`,
+      console.log('Crop applied successfully', {
+        from: `${currentImage.width}x${currentImage.height}`,
+        to: `${result.width}x${result.height}`,
         cropRect,
       });
     } catch (error) {
-      console.error('❌ Crop failed:', error);
-      alert(`Crop failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Crop failed:', error);
+      showErrorToast('Crop Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsCropping(false);
     }
@@ -602,14 +595,14 @@ function App() {
       resultCanvas.toBlob((blob) => {
         if (blob) {
           downloadImage(blob, currentImage.file.name, 'bgremoved', 'png');
-          alert(`✅ Background removal complete!\n\n📥 File downloaded`);
+          showSuccessToast('Background Removal Complete', 'Image saved successfully');
         }
       }, 'image/png');
 
-      console.log('✅ Background removal applied successfully');
+      console.log('Background removal applied successfully');
     } catch (error) {
-      console.error('❌ Background removal failed:', error);
-      alert(`Background removal failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Background removal failed:', error);
+      showErrorToast('Background Removal Failed', error instanceof Error ? error.message : 'Unknown error');
     }
   }, [currentImage]);
 
@@ -810,6 +803,7 @@ function App() {
       >
         {renderCanvas()}
       </WorkspaceLayout>
+      <ToastContainer />
     </>
   );
 }

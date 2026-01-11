@@ -142,7 +142,16 @@ export function useCompressWorker(): UseCompressWorkerReturn {
         timestamp: Date.now(),
       };
 
+      // Set timeout (30 seconds default)
+      const timeoutId = setTimeout(() => {
+        if (messageHandlersRef.current.has(id)) {
+          messageHandlersRef.current.delete(id);
+          reject(new Error('Worker response timeout'));
+        }
+      }, 30000);
+
       messageHandlersRef.current.set(id, (response: WorkerResponse) => {
+        clearTimeout(timeoutId); // Clear timeout on successful response
         if (response.success) {
           resolve(response as WorkerResponse<TResponse>);
         } else {
@@ -151,13 +160,6 @@ export function useCompressWorker(): UseCompressWorkerReturn {
       });
 
       workerRef.current.postMessage(fullMessage);
-
-      setTimeout(() => {
-        if (messageHandlersRef.current.has(id)) {
-          messageHandlersRef.current.delete(id);
-          reject(new Error('Worker response timeout'));
-        }
-      }, 30000);
     });
   }, []);
 

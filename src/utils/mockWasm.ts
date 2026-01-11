@@ -4,7 +4,28 @@
  * Simulates WASM operations with JavaScript implementations
  */
 
-import { CoreWasmApi, CropRect, RotateAngle, FlipDirection, ResizeQuality } from '../types';
+import { CoreWasmApi, CropRect, RotateAngle, FlipDirection, ResizeQuality, WasmCropRect } from '../types';
+
+/**
+ * Mock CropRect class that mimics the WASM CropRect
+ */
+class MockCropRect implements WasmCropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+
+  constructor(x: number, y: number, width: number, height: number) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+  }
+
+  free(): void {
+    // No-op for mock implementation
+  }
+}
 
 /**
  * Create mock CoreWasmApi
@@ -12,6 +33,7 @@ import { CoreWasmApi, CropRect, RotateAngle, FlipDirection, ResizeQuality } from
  */
 export function createMockCoreWasm(): CoreWasmApi {
   return {
+    CropRect: MockCropRect,
     crop_image: mockCropImage,
     rotate_image: mockRotateImage,
     flip_image: mockFlipImage,

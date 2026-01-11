@@ -4,7 +4,15 @@
  * Supports solid color removal, magic wand selection, and GrabCut segmentation
  */
 
-import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
+import {
+  MessageType,
+  WorkerMessage,
+  WorkerResponse,
+  generateMessageId,
+  RemoveSolidColorPayload,
+  MagicWandSelectPayload,
+  GrabCutSegmentPayload,
+} from '../types';
 import type { BgRemoveWasmApi } from '../types';
 
 // Worker startup log
@@ -88,7 +96,7 @@ async function initWasm(): Promise<void> {
 /**
  * Handle solid color removal operation
  */
-async function handleRemoveSolidColor(message: WorkerMessage<any>): Promise<void> {
+async function handleRemoveSolidColor(message: WorkerMessage<RemoveSolidColorPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -164,7 +172,7 @@ async function handleRemoveSolidColor(message: WorkerMessage<any>): Promise<void
 /**
  * Handle magic wand selection operation
  */
-async function handleMagicWandSelect(message: WorkerMessage<any>): Promise<void> {
+async function handleMagicWandSelect(message: WorkerMessage<MagicWandSelectPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -237,7 +245,7 @@ async function handleMagicWandSelect(message: WorkerMessage<any>): Promise<void>
 /**
  * Handle GrabCut segmentation operation
  */
-async function handleGrabCutSegment(message: WorkerMessage<any>): Promise<void> {
+async function handleGrabCutSegment(message: WorkerMessage<GrabCutSegmentPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -339,7 +347,7 @@ function sendMessage(response: WorkerResponse): void {
 /**
  * Message handler
  */
-self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+self.onmessage = async (event: MessageEvent<WorkerMessage<unknown>>) => {
   const message = event.data;
 
   switch (message.type) {
@@ -348,15 +356,15 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       break;
 
     case MessageType.REMOVE_SOLID_COLOR:
-      await handleRemoveSolidColor(message);
+      await handleRemoveSolidColor(message as WorkerMessage<RemoveSolidColorPayload>);
       break;
 
     case MessageType.MAGIC_WAND_SELECT:
-      await handleMagicWandSelect(message);
+      await handleMagicWandSelect(message as WorkerMessage<MagicWandSelectPayload>);
       break;
 
     case MessageType.GRABCUT_SEGMENT:
-      await handleGrabCutSegment(message);
+      await handleGrabCutSegment(message as WorkerMessage<GrabCutSegmentPayload>);
       break;
 
     case MessageType.TERMINATE_WORKER:

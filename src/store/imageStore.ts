@@ -79,6 +79,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
           height: dimensions.height,
           size: file.size,
           format: getFormatFromFile(file),
+          fileName: file.name,
         } as ImageFile;
       })
     );
@@ -229,13 +230,15 @@ export const useImageStore = create<ImageState>((set, get) => ({
    */
   clearOperations: (imageId: string) => {
     set((state) => {
-      const processedImages = new Map(state.processedImages);
-      const processed = processedImages.get(imageId);
+      const existing = state.processedImages.get(imageId);
 
-      if (processed) {
-        processed.operations = [];
-        processedImages.set(imageId, processed);
+      // Early return if item doesn't exist - avoid unnecessary Map copy
+      if (!existing) {
+        return state;
       }
+
+      const processedImages = new Map(state.processedImages);
+      processedImages.set(imageId, { ...existing, operations: [] });
 
       return { processedImages };
     });

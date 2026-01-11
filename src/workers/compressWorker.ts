@@ -4,8 +4,48 @@
  * Processes JPEG, WebP compression and target file size optimization
  */
 
-import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
+import {
+  MessageType,
+  WorkerMessage,
+  WorkerResponse,
+  generateMessageId,
+  CompressJpegPayload,
+  CompressWebpPayload,
+  CompressToSizePayload,
+} from '../types';
 import type { CompressWasmApi } from '../types';
+
+/**
+ * PNG compression payload (same structure as JPEG without advanced params)
+ */
+interface CompressPngPayload {
+  imageData: Uint8Array;
+  width: number;
+  height: number;
+  quality: number;
+}
+
+/**
+ * Chrome-specific memory info interface for feature detection
+ */
+interface ChromePerformanceMemory {
+  jsHeapSizeLimit: number;
+  totalJSHeapSize: number;
+  usedJSHeapSize: number;
+}
+
+interface ChromePerformance extends Performance {
+  memory?: ChromePerformanceMemory;
+}
+
+/**
+ * Get memory usage if available (Chrome-only feature)
+ * Returns undefined for browsers that don't support performance.memory
+ */
+function getMemoryUsage(): ChromePerformanceMemory | undefined {
+  const chromePerformance = performance as ChromePerformance;
+  return chromePerformance.memory;
+}
 
 // ============================================================================
 // State Management
@@ -94,7 +134,7 @@ async function initWasm(): Promise<void> {
 /**
  * Handle JPEG compression operation
  */
-async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
+async function handleCompressJpeg(message: WorkerMessage<CompressJpegPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -183,7 +223,7 @@ async function handleCompressJpeg(message: WorkerMessage<any>): Promise<void> {
 /**
  * Handle WebP compression operation
  */
-async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
+async function handleCompressWebp(message: WorkerMessage<CompressWebpPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -330,7 +370,7 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
 /**
  * Handle PNG compression operation
  */
-async function handleCompressPng(message: WorkerMessage<any>): Promise<void> {
+async function handleCompressPng(message: WorkerMessage<CompressPngPayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -461,7 +501,7 @@ async function handleCompressPng(message: WorkerMessage<any>): Promise<void> {
  * Handle compress to target size operation
  * Uses binary search to find optimal quality for target file size
  */
-async function handleCompressToSize(message: WorkerMessage<any>): Promise<void> {
+async function handleCompressToSize(message: WorkerMessage<CompressToSizePayload>): Promise<void> {
   const startTime = performance.now();
 
   try {
@@ -609,7 +649,7 @@ function sendMessage(response: WorkerResponse): void {
 /**
  * Main message handler
  */
-self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
+self.onmessage = async (event: MessageEvent<WorkerMessage<unknown>>) => {
   const message = event.data;
 
   switch (message.type) {
@@ -618,19 +658,19 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
       break;
 
     case MessageType.COMPRESS_JPEG:
-      await handleCompressJpeg(message);
+      await handleCompressJpeg(message as WorkerMessage<CompressJpegPayload>);
       break;
 
     case MessageType.COMPRESS_WEBP:
-      await handleCompressWebp(message);
+      await handleCompressWebp(message as WorkerMessage<CompressWebpPayload>);
       break;
 
     case MessageType.COMPRESS_PNG:
-      await handleCompressPng(message);
+      await handleCompressPng(message as WorkerMessage<CompressPngPayload>);
       break;
 
     case MessageType.COMPRESS_TO_SIZE:
-      await handleCompressToSize(message);
+      await handleCompressToSize(message as WorkerMessage<CompressToSizePayload>);
       break;
 
     case MessageType.TERMINATE_WORKER:
@@ -649,7 +689,7 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
           initialized,
           moduleLoaded: !!wasmModule,
           availableFunctions: wasmModule ? Object.keys(wasmModule) : [],
-          memoryUsage: (performance as any).memory,
+          memoryUsage: getMemoryUsage(),
         },
         processingTime: 0,
       });

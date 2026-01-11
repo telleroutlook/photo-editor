@@ -48,6 +48,29 @@ export enum CompressionFormat {
 }
 
 // ============================================================================
+// WASM Class Constructors
+// ============================================================================
+
+/**
+ * CropRect WASM class constructor
+ * Used to create CropRect instances for WASM function calls
+ */
+export interface CropRectClass {
+  new (x: number, y: number, width: number, height: number): WasmCropRect;
+}
+
+/**
+ * WASM CropRect instance (returned from CropRectClass constructor)
+ */
+export interface WasmCropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  free(): void;
+}
+
+// ============================================================================
 // CORE WASM Module Interface (~150KB)
 // Functions: crop, rotate, flip, resize
 // ============================================================================
@@ -57,6 +80,10 @@ export enum CompressionFormat {
  * Provides basic image manipulation functions
  */
 export interface CoreWasmApi {
+  /**
+   * CropRect class constructor for creating WASM CropRect instances
+   */
+  CropRect: CropRectClass;
   /**
    * Crop image to specified rectangle
    * @param input - Input image data (RGBA format, 4 bytes per pixel)

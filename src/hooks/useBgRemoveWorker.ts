@@ -173,8 +173,17 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
         timestamp: Date.now(),
       };
 
+      // Set timeout (30 seconds default)
+      const timeoutId = setTimeout(() => {
+        if (messageHandlersRef.current.has(id)) {
+          messageHandlersRef.current.delete(id);
+          reject(new Error('Worker response timeout'));
+        }
+      }, 30000);
+
       // Set up handler for this message
       messageHandlersRef.current.set(id, (response: WorkerResponse<unknown>) => {
+        clearTimeout(timeoutId); // Clear timeout on successful response
         const typedResponse = response as WorkerResponse<TResponse>;
         if (typedResponse.success) {
           resolve(typedResponse);
@@ -185,14 +194,6 @@ export function useBgRemoveWorker(): UseBgRemoveWorkerReturn {
 
       // Send message to worker
       workerRef.current.postMessage(fullMessage);
-
-      // Set timeout (30 seconds default)
-      setTimeout(() => {
-        if (messageHandlersRef.current.has(id)) {
-          messageHandlersRef.current.delete(id);
-          reject(new Error('Worker response timeout'));
-        }
-      }, 30000);
     });
   }, []);
 

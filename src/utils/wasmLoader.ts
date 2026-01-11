@@ -103,7 +103,7 @@ export async function loadBgRemoveWasm(): Promise<WasmLoadResult<BgRemoveWasmApi
     console.log('🔄 Loading BgRemove WASM module...');
 
     // Dynamically import the compiled WASM module
-    const wasmUrl = new URL('/wasm/bgremove/photo_editor_compress.js', import.meta.url);
+    const wasmUrl = new URL('/wasm/bgremove/photo_editor_bgremove.js', import.meta.url);
     const wasmModule = await import(wasmUrl.href);
 
     // Initialize the WASM module

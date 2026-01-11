@@ -33,9 +33,20 @@ export function useWasmWorker({
   autoInit = true,
 }: UseWasmWorkerOptions): UseWasmWorkerReturn {
   const workerRef = useRef<Worker | null>(null);
+  const initializingRef = useRef(false); // Guard against race conditions
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [initialized, setInitialized] = useState(false);
+
+  // Store callbacks in refs to avoid dependency issues
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onErrorRef.current = onError;
+  }, [onMessage, onError]);
 
   // Message handlers map (for promise-based communication)
   const messageHandlersRef = useRef<Map<string, (response: WorkerResponse<unknown>) => void>>(new Map());
@@ -44,18 +55,21 @@ export function useWasmWorker({
    * Initialize worker
    */
   const initWorker = useCallback(() => {
-    if (workerRef.current) {
-      return; // Already initialized
+    // Guard against race conditions - prevent multiple initializations
+    if (workerRef.current || initializingRef.current) {
+      return;
     }
 
+    initializingRef.current = true;
+
     try {
-      console.log('🔧 [useWasmWorker] Initializing worker with path:', workerPath);
+      console.log('[useWasmWorker] Initializing worker with path:', workerPath);
       setLoading(true);
       setError(null);
 
       // Create worker instance
       const worker = new Worker(workerPath, { type: 'module' });
-      console.log('✅ [useWasmWorker] Worker created successfully');
+      console.log('[useWasmWorker] Worker created successfully');
 
       // Setup message handler
       worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
@@ -68,15 +82,15 @@ export function useWasmWorker({
           messageHandlersRef.current.delete(response.id);
         }
 
-        // Call global onMessage callback
-        if (onMessage) {
-          onMessage(response);
+        // Call global onMessage callback using ref
+        if (onMessageRef.current) {
+          onMessageRef.current(response);
         }
       };
 
       // Setup error handler
       worker.onerror = (event: ErrorEvent) => {
-        console.error('❌ [useWasmWorker] Worker error:', {
+        console.error('[useWasmWorker] Worker error:', {
           message: event.message,
           filename: event.filename,
           lineno: event.lineno,
@@ -84,15 +98,15 @@ export function useWasmWorker({
           error: event.error,
           stack: event.error?.stack
         });
-        const error = new Error(event.message || 'Worker error');
+        const workerError = new Error(event.message || 'Worker error');
         if (event.error) {
-          error.stack = event.error.stack;
+          workerError.stack = event.error.stack;
         }
-        setError(error);
+        setError(workerError);
         setLoading(false);
 
-        if (onError) {
-          onError(error);
+        if (onErrorRef.current) {
+          onErrorRef.current(workerError);
         }
       };
 
@@ -108,15 +122,16 @@ export function useWasmWorker({
 
       worker.postMessage(initMessage);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to initialize worker');
-      setError(error);
+      const initError = err instanceof Error ? err : new Error('Failed to initialize worker');
+      setError(initError);
       setLoading(false);
+      initializingRef.current = false;
 
-      if (onError) {
-        onError(error);
+      if (onErrorRef.current) {
+        onErrorRef.current(initError);
       }
     }
-  }, [workerPath, onMessage, onError]);
+  }, [workerPath]); // Only depend on workerPath, use refs for callbacks
 
   /**
    * Terminate worker
@@ -135,6 +150,7 @@ export function useWasmWorker({
       workerRef.current = null;
     }
 
+    initializingRef.current = false;
     setInitialized(false);
     messageHandlersRef.current.clear();
   }, []);
@@ -144,7 +160,10 @@ export function useWasmWorker({
    */
   const restart = useCallback(() => {
     terminate();
-    initWorker();
+    // Small delay to ensure cleanup completes
+    setTimeout(() => {
+      initWorker();
+    }, 10);
   }, [terminate, initWorker]);
 
   /**
@@ -166,8 +185,17 @@ export function useWasmWorker({
         timestamp: Date.now(),
       };
 
+      // Set timeout (30 seconds default)
+      const timeoutId = setTimeout(() => {
+        if (messageHandlersRef.current.has(id)) {
+          messageHandlersRef.current.delete(id);
+          reject(new Error('Worker response timeout'));
+        }
+      }, 30000);
+
       // Set up handler for this message
       messageHandlersRef.current.set(id, (response: WorkerResponse<unknown>) => {
+        clearTimeout(timeoutId); // Clear timeout on successful response
         const typedResponse = response as WorkerResponse<TResponse>;
         if (typedResponse.success) {
           resolve(typedResponse);
@@ -178,18 +206,10 @@ export function useWasmWorker({
 
       // Send message to worker
       workerRef.current.postMessage(fullMessage);
-
-      // Set timeout (30 seconds default)
-      setTimeout(() => {
-        if (messageHandlersRef.current.has(id)) {
-          messageHandlersRef.current.delete(id);
-          reject(new Error('Worker response timeout'));
-        }
-      }, 30000);
     });
   }, []);
 
-  // Auto-initialize on mount
+  // Auto-initialize on mount - use stable workerPath dependency only
   useEffect(() => {
     if (autoInit) {
       initWorker();
@@ -198,7 +218,8 @@ export function useWasmWorker({
     return () => {
       terminate();
     };
-  }, [autoInit, initWorker, terminate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initWorker and terminate are stable refs, including them causes re-initialization loops
+  }, [autoInit, workerPath]);
 
   return {
     sendMessage,
