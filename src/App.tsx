@@ -19,7 +19,7 @@ import { CropControls } from './components/crop/CropControls';
 import { BgRemoveControls } from './components/bgremove/BgRemoveControls';
 
 // Types and Hooks
-import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, MessageType, CropRect } from './types';
+import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, CropRect } from './types';
 import type { JpegAdvancedParams, WebPAdvancedParams } from './types/wasm';
 import { useCompressWorker } from './hooks/useCompressWorker';
 import { useCoreWorker } from './hooks/useCoreWorker';

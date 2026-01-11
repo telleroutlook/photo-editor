@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { ImageFile, ProcessedImage, AnyOperation } from '../types';
+import { generateMessageId } from '../types/worker';
 
 interface ImageState {
   // State
@@ -62,8 +63,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
     // Process each file
     const processedFiles = await Promise.all(
       files.map(async (file) => {
-        // Generate unique ID
-        const id = generateId();
+        const id = generateMessageId();
 
         // Create blob URL
         const url = URL.createObjectURL(file);
@@ -278,13 +278,6 @@ export const useImageStore = create<ImageState>((set, get) => ({
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-/**
- * Generate a unique ID
- */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-}
 
 /**
  * Get image dimensions from a file

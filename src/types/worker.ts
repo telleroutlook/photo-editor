@@ -252,7 +252,7 @@ export function createWorkerResponse<T>(
 /**
  * Generate unique message ID
  */
-function generateMessageId(): string {
+export function generateMessageId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 

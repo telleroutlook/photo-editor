@@ -4,7 +4,7 @@
  * Supports solid color removal, magic wand selection, and GrabCut segmentation
  */
 
-import { MessageType, WorkerMessage, WorkerResponse } from '../types';
+import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
 import type { BgRemoveWasmApi } from '../types';
 
 // Worker state
@@ -45,7 +45,7 @@ async function initWasm(): Promise<void> {
     initialized = true;
 
     sendMessage({
-      id: generateId(),
+      id: generateMessageId(),
       type: MessageType.INIT_WORKER,
       success: true,
       data: {
@@ -56,14 +56,9 @@ async function initWasm(): Promise<void> {
       processingTime: 0,
     });
   } catch (error) {
-    console.error('❌ [BgRemoveWorker] Failed to load BgRemove WASM module:', error);
-    console.error('🔍 [BgRemoveWorker] Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined
-    });
+    console.error('Failed to load BgRemove WASM module:', error);
     sendMessage({
-      id: generateId(),
+      id: generateMessageId(),
       type: MessageType.INIT_WORKER,
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -321,13 +316,6 @@ async function handleGrabCutSegment(message: WorkerMessage<any>): Promise<void> 
  */
 function sendMessage(response: WorkerResponse): void {
   self.postMessage(response);
-}
-
-/**
- * Generate unique message ID
- */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 /**

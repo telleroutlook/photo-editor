@@ -6,6 +6,7 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
 import { MessageType, FlipDirection, ResizeQuality } from '../types';
 import type { WorkerMessage, WorkerResponse, CropRect } from '../types';
+import { generateMessageId } from '../types/worker';
 
 interface CropResult {
   imageData: Uint8Array;
@@ -104,7 +105,7 @@ export function useCoreWorker(): UseCoreWorkerReturn {
       // Send init message
       console.log('📤 [useCoreWorker] Init message sent');
       const initMessage: WorkerMessage = {
-        id: generateId(),
+        id: generateMessageId(),
         type: MessageType.INIT_WORKER,
         payload: {},
         timestamp: Date.now(),
@@ -161,7 +162,7 @@ export function useCoreWorker(): UseCoreWorkerReturn {
       setError(null);
       try {
         const response = await sendMessage<CropResult>({
-          id: generateId(),
+          id: generateMessageId(),
           type: MessageType.CROP_IMAGE,
           payload: { imageData: imageData.buffer, width, height, cropRect },
           timestamp: Date.now(),
@@ -190,7 +191,7 @@ export function useCoreWorker(): UseCoreWorkerReturn {
       setError(null);
       try {
         const response = await sendMessage<RotateResult>({
-          id: generateId(),
+          id: generateMessageId(),
           type: MessageType.ROTATE_IMAGE,
           payload: { imageData: imageData.buffer, width, height, angle },
           timestamp: Date.now(),
@@ -224,7 +225,7 @@ export function useCoreWorker(): UseCoreWorkerReturn {
       setError(null);
       try {
         const response = await sendMessage<FlipResult>({
-          id: generateId(),
+          id: generateMessageId(),
           type: MessageType.FLIP_IMAGE,
           payload: { imageData: imageData.buffer, width, height, direction },
           timestamp: Date.now(),
@@ -260,7 +261,7 @@ export function useCoreWorker(): UseCoreWorkerReturn {
       setError(null);
       try {
         const response = await sendMessage<ResizeResult>({
-          id: generateId(),
+          id: generateMessageId(),
           type: MessageType.RESIZE_IMAGE,
           payload: { imageData: imageData.buffer, width, height, newWidth, newHeight, quality },
           timestamp: Date.now(),
@@ -291,11 +292,4 @@ export function useCoreWorker(): UseCoreWorkerReturn {
     error,
     initialized,
   };
-}
-
-/**
- * Generate unique message ID
- */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }

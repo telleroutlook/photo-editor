@@ -16,22 +16,13 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
   initialCropRect,
   aspectRatio = 0,
 }) => {
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  console.log(`🔄 CropCanvas render #${renderCountRef.current}`, {
-    imageDataChanged: imageData.url,
-    aspectRatio,
-    initialCropRect,
-  });
-
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const cropRectRef = useRef<Rect | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-  const lastCanvasSizeRef = useRef({ width: 0, height: 0 }); // Track last canvas size
+  const lastCanvasSizeRef = useRef({ width: 0, height: 0 });
 
-  // ✅ Store initialCropRect in a ref to avoid re-triggering image load
   const initialCropRectRef = useRef(initialCropRect);
   useEffect(() => {
     if (initialCropRect && (initialCropRect.width !== 0 || initialCropRect.height !== 0)) {
@@ -43,17 +34,13 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // ✅ Guard: Only recreate canvas if size actually changed
     const sizeChanged =
       lastCanvasSizeRef.current.width !== canvasSize.width ||
       lastCanvasSizeRef.current.height !== canvasSize.height;
 
     if (!sizeChanged) {
-      console.log('📏 Canvas size unchanged, skipping recreation');
       return;
     }
-
-    console.log('🎨 Creating new canvas with size:', canvasSize);
 
     // Dispose existing canvas if any
     if (fabricCanvasRef.current) {
@@ -110,7 +97,6 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     };
   }, [imageData.width, imageData.height]);
 
-  // ✅ Use refs to store latest values and avoid dependency chains
   const latestImageDataRef = useRef(imageData);
   const latestCanvasSizeRef = useRef(canvasSize);
   const latestOnCropChangeRef = useRef(onCropChange);
@@ -121,12 +107,10 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     latestOnCropChangeRef.current = onCropChange;
   }, [imageData, canvasSize, onCropChange]);
 
-  // ✅ Store updateCropRect in a ref to break the dependency cycle
   const updateCropRectRef = useRef<(() => void) | null>(null);
   const updateTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastCropRectRef = useRef<CropRect | null>(null);
 
-  // Define the function using ref values (no dependencies needed)
   updateCropRectRef.current = () => {
     if (!cropRectRef.current) return;
 
@@ -134,24 +118,10 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     const imageData = latestImageDataRef.current;
     const canvasSize = latestCanvasSizeRef.current;
 
-    // ✅ Guard against division by zero
     if (canvasSize.width === 0 || canvasSize.height === 0) {
-      console.warn('⚠️ Canvas size is zero, skipping crop rect update');
       return;
     }
 
-    // Debug: Log raw Fabric.js coordinates
-    console.log('📐 Fabric.js rect coordinates:', {
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-      scaleX: rect.scaleX,
-      scaleY: rect.scaleY,
-    });
-
-    // Convert canvas coordinates back to image coordinates
-    // Note: Need to account for scale transformations
     const cropRect: CropRect = {
       x: Math.round((rect.left! * imageData.width) / canvasSize.width),
       y: Math.round((rect.top! * imageData.height) / canvasSize.height),
@@ -159,57 +129,31 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       height: Math.round(((rect.height! * rect.scaleY!) * imageData.height) / canvasSize.height),
     };
 
-    // Clamp values to image bounds
     cropRect.x = Math.max(0, Math.min(cropRect.x, imageData.width - cropRect.width));
     cropRect.y = Math.max(0, Math.min(cropRect.y, imageData.height - cropRect.height));
     cropRect.width = Math.min(cropRect.width, imageData.width);
     cropRect.height = Math.min(cropRect.height, imageData.height);
 
-    // ✅ Only call onCropChange if values are valid AND changed
     if (cropRect.width > 0 && cropRect.height > 0) {
       const lastRect = lastCropRectRef.current;
 
-      // Debug: Log comparison
-      console.log('🔍 Crop rect comparison:', {
-        current: cropRect,
-        last: lastRect,
-        changed: !lastRect ||
-          lastRect.x !== cropRect.x ||
-          lastRect.y !== cropRect.y ||
-          lastRect.width !== cropRect.width ||
-          lastRect.height !== cropRect.height
-      });
-
-      // Check if values actually changed (avoid unnecessary updates)
       if (!lastRect ||
           lastRect.x !== cropRect.x ||
           lastRect.y !== cropRect.y ||
           lastRect.width !== cropRect.width ||
           lastRect.height !== cropRect.height) {
 
-        // Clear existing timeout
         if (updateTimeoutRef.current) {
           clearTimeout(updateTimeoutRef.current);
         }
 
-        // Debounce the update (100ms)
         updateTimeoutRef.current = setTimeout(() => {
-          console.log('🎯 updateCropRect called:', cropRect);
           lastCropRectRef.current = cropRect;
           latestOnCropChangeRef.current(cropRect);
         }, 100);
-      } else {
-        console.log('⏭️ Skipped update (no change)');
       }
-    } else {
-      console.warn('⚠️ Invalid crop rect (zero width/height), skipping:', cropRect);
     }
   };
-
-  // Log when updateCropRect ref is updated
-  useEffect(() => {
-    console.log('✅ updateCropRect ref updated');
-  }, [imageData, canvasSize, onCropChange]);
 
   // Load image onto canvas
   useEffect(() => {
@@ -217,42 +161,32 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
     const canvas = fabricCanvasRef.current;
 
-    // ✅ Guard: Ensure canvas is valid and not disposed
     if (!canvas.getElement || typeof canvas.clear !== 'function') {
-      console.warn('⚠️ Canvas is not ready or has been disposed, skipping image load');
       return;
     }
 
-    // ✅ Guard: Prevent reloading if image is already loaded and size hasn't changed
     if (imageLoaded && canvas.getObjects().length > 0) {
       const hasImage = canvas.getObjects().some(obj => obj.type === 'image');
       if (hasImage) {
-        console.log('🖼️ Image already loaded, skipping reload');
         return;
       }
     }
-
-    console.log('🖼️ Loading image:', imageData.url);
 
     FabricImage.fromURL(imageData.url, {
       crossOrigin: 'anonymous',
     }).then((img) => {
       if (!img || !fabricCanvasRef.current) return;
 
-      // ✅ Re-check canvas validity before manipulation
       const currentCanvas = fabricCanvasRef.current;
       if (!currentCanvas.getElement || typeof currentCanvas.clear !== 'function') {
-        console.warn('⚠️ Canvas became invalid during image load');
         return;
       }
 
-      // Clear existing objects and set background color
       try {
         currentCanvas.clear();
         currentCanvas.backgroundColor = '#1f2937';
         currentCanvas.renderAll();
-      } catch (err) {
-        console.error('Failed to clear canvas:', err);
+      } catch {
         return;
       }
 
@@ -317,12 +251,11 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       updateCropRectRef.current?.();
 
       setImageLoaded(true);
-    }).catch((err) => {
-      console.error('Failed to load image:', err);
+    }).catch(() => {
+      // Image load failed silently
     });
 
     return () => {
-      // Cleanup image objects
       if (!fabricCanvasRef.current) return;
 
       try {
@@ -331,11 +264,12 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
             obj.dispose?.();
           }
         });
-      } catch (err) {
-        console.warn('Error during image cleanup:', err);
+      } catch {
+        // Cleanup failed silently
       }
     };
-  }, [imageData.url, canvasSize]);  // ✅ Removed imageLoaded to prevent circular dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageData.url, canvasSize]);
 
   // Update crop rectangle when aspect ratio changes
   useEffect(() => {
@@ -345,42 +279,34 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     const canvas = fabricCanvasRef.current;
 
     if (aspectRatio > 0) {
-      // Lock aspect ratio
       cropRect.set('lockAspectRatio', true);
       cropRect.set('aspectRatio', aspectRatio);
 
-      // Adjust height to match aspect ratio
       const newHeight = cropRect.width! / aspectRatio;
       cropRect.set('height', newHeight);
 
       canvas.renderAll();
       updateCropRectRef.current?.();
     } else {
-      // Free form
       cropRect.set('lockAspectRatio', false);
       cropRect.set('aspectRatio', undefined);
     }
-  }, [aspectRatio, imageLoaded]);  // ✅ Removed updateCropRect from dependencies
+  }, [aspectRatio, imageLoaded]);
 
   // Listen to crop rectangle modifications
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas || !cropRectRef.current || !imageLoaded) return;
 
-    console.log('🔧 Setting up Fabric.js event listeners');
-
     const handleObjectModified = () => {
-      console.log('⚡ Fabric.js event triggered: object:modified');
       updateCropRectRef.current?.();
     };
 
     const handleObjectScaling = () => {
-      console.log('⚡ Fabric.js event triggered: object:scaling');
       updateCropRectRef.current?.();
     };
 
     const handleObjectMoving = () => {
-      console.log('⚡ Fabric.js event triggered: object:moving');
       updateCropRectRef.current?.();
     };
 
@@ -389,8 +315,6 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
     canvas.on('object:moving', handleObjectMoving);
 
     return () => {
-      console.log('🔧 Cleaning up Fabric.js event listeners');
-      // Clear timeout on cleanup
       if (updateTimeoutRef.current) {
         clearTimeout(updateTimeoutRef.current);
       }
@@ -398,7 +322,7 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
       canvas.off('object:scaling', handleObjectScaling);
       canvas.off('object:moving', handleObjectMoving);
     };
-  }, [imageLoaded]);  // ✅ Depend on imageLoaded to ensure cropRect exists
+  }, [imageLoaded]);
 
   return (
     <div className="w-full">

@@ -4,7 +4,7 @@
  * Processes crop, rotate, flip, and resize operations
  */
 
-import { MessageType, WorkerMessage, WorkerResponse } from '../types';
+import { MessageType, WorkerMessage, WorkerResponse, generateMessageId } from '../types';
 import type { CoreWasmApi } from '../types';
 
 // Worker state
@@ -39,7 +39,7 @@ async function initWasm(): Promise<void> {
     initialized = true;
 
     sendMessage({
-      id: generateId(),
+      id: generateMessageId(),
       type: MessageType.INIT_WORKER,
       success: true,
       data: {
@@ -50,9 +50,9 @@ async function initWasm(): Promise<void> {
       processingTime: 0,
     });
   } catch (error) {
-    console.error('❌ Failed to load Core WASM module:', error);
+    console.error('Failed to load Core WASM module:', error);
     sendMessage({
-      id: generateId(),
+      id: generateMessageId(),
       type: MessageType.INIT_WORKER,
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -321,13 +321,6 @@ async function handleResizeImage(message: WorkerMessage<any>): Promise<void> {
  */
 function sendMessage(response: WorkerResponse): void {
   self.postMessage(response);
-}
-
-/**
- * Generate unique message ID
- */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 /**

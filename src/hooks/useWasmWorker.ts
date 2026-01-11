@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { WorkerMessage, WorkerResponse, MessageType } from '../types';
+import { generateMessageId } from '../types/worker';
 
 interface UseWasmWorkerOptions {
   workerPath: string;
@@ -99,7 +100,7 @@ export function useWasmWorker({
 
       // Initialize WASM module
       const initMessage: WorkerMessage = {
-        id: generateId(),
+        id: generateMessageId(),
         type: MessageType.INIT_WORKER,
         payload: {},
         timestamp: Date.now(),
@@ -123,7 +124,7 @@ export function useWasmWorker({
   const terminate = useCallback(() => {
     if (workerRef.current) {
       const terminateMessage: WorkerMessage = {
-        id: generateId(),
+        id: generateMessageId(),
         type: MessageType.TERMINATE_WORKER,
         payload: {},
         timestamp: Date.now(),
@@ -158,7 +159,7 @@ export function useWasmWorker({
         return;
       }
 
-      const id = generateId();
+      const id = generateMessageId();
       const fullMessage: WorkerMessage<TPayload> = {
         ...message,
         id,
@@ -199,35 +200,6 @@ export function useWasmWorker({
     };
   }, [autoInit, initWorker, terminate]);
 
-  // Listen for initialization success
-  useEffect(() => {
-    const handleInitMessage = (response: WorkerResponse) => {
-      if (response.type === MessageType.INIT_WORKER) {
-        setLoading(false);
-
-        if (response.success) {
-          setInitialized(true);
-          setError(null);
-        } else {
-          setError(new Error(response.error || 'Failed to initialize WASM module'));
-        }
-      }
-    };
-
-    // Wrap onMessage to handle initialization
-    // Note: _wrappedOnMessage defined for future use in message interception
-    void ((_response: WorkerResponse) => {
-      handleInitMessage(_response);
-      if (onMessage) {
-        onMessage(_response);
-      }
-    });
-
-    return () => {
-      // Cleanup
-    };
-  }, [onMessage]);
-
   return {
     sendMessage,
     loading,
@@ -236,11 +208,4 @@ export function useWasmWorker({
     terminate,
     restart,
   };
-}
-
-/**
- * Generate unique message ID
- */
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
