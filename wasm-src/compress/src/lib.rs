@@ -1,6 +1,8 @@
 use wasm_bindgen::prelude::*;
 
 mod jpeg;
+mod webp;
+mod png;
 mod binary_search;
 
 // Export compression result struct
@@ -42,34 +44,45 @@ pub fn compress_jpeg(
 ) -> usize {
     // Validate inputs
     if input.is_empty() || width == 0 || height == 0 {
+        web_sys::console::log_1(&"Validation failed: empty input or zero dimensions".into());
         return 0;
     }
 
     let expected_size = (width * height * 4) as usize;
     if input.len() != expected_size {
+        web_sys::console::log_2(&"Input size mismatch".into(),
+            &format!("expected {}, got {}", expected_size, input.len()).into());
         return 0;
     }
 
     if quality < 1 || quality > 100 {
+        web_sys::console::log_2(&"Quality out of range".into(), &quality.into());
         return 0;
     }
 
     if output.len() < input.len() {
+        web_sys::console::log_2(&"Output buffer too small".into(),
+            &format!("output: {}, input: {}", output.len(), input.len()).into());
         return 0;
     }
 
+    web_sys::console::log_1(&"Calling JPEG compression...".into());
+
     // Call JPEG compression
     match jpeg::compress_to_jpeg(input, width, height, quality, output) {
-        Ok(size) => size,
-        Err(_) => 0,
+        Ok(size) => {
+            web_sys::console::log_2(&"JPEG compression success".into(), &size.into());
+            size
+        },
+        Err(e) => {
+            web_sys::console::log_2(&"JPEG compression error".into(), &e.into());
+            0
+        }
     }
 }
 
 /**
  * Compress RGBA image data to WebP format
- *
- * Note: WebP encoding is not yet implemented in the image crate.
- * This function falls back to JPEG compression for now.
  *
  * # Arguments
  * * `input` - RGBA image data (4 bytes per pixel, row-major order)
@@ -89,8 +102,106 @@ pub fn compress_webp(
     quality: u8,
     output: &mut [u8],
 ) -> usize {
-    // WebP not yet supported, fallback to JPEG
-    compress_jpeg(input, width, height, quality, output)
+    // Validate inputs
+    if input.is_empty() || width == 0 || height == 0 {
+        web_sys::console::log_1(&"WebP compression: Validation failed - empty input or zero dimensions".into());
+        return 0;
+    }
+
+    let expected_size = (width * height * 4) as usize;
+    if input.len() != expected_size {
+        web_sys::console::log_2(&"WebP compression: Input size mismatch".into(),
+            &format!("expected {}, got {}", expected_size, input.len()).into());
+        return 0;
+    }
+
+    if quality < 1 || quality > 100 {
+        web_sys::console::log_2(&"WebP compression: Quality out of range".into(), &quality.into());
+        return 0;
+    }
+
+    if output.len() < input.len() {
+        web_sys::console::log_2(&"WebP compression: Output buffer too small".into(),
+            &format!("output: {}, input: {}", output.len(), input.len()).into());
+        return 0;
+    }
+
+    web_sys::console::log_1(&"Calling WebP compression...".into());
+
+    // Call WebP compression
+    match webp::compress_to_webp(input, width, height, quality, output) {
+        Ok(size) => {
+            web_sys::console::log_2(&"WebP compression success".into(), &size.into());
+            size
+        },
+        Err(e) => {
+            web_sys::console::log_2(&"WebP compression error".into(), &e.into());
+            0
+        }
+    }
+}
+
+/**
+ * Compress RGBA image data to PNG format
+ *
+ * Note: PNG is lossless compression. The quality parameter controls
+ * compression level (Fast/Default/High/Best) for trade-off between size and speed.
+ *
+ * # Arguments
+ * * `input` - RGBA image data (4 bytes per pixel, row-major order)
+ * * `width` - Image width in pixels
+ * * `height` - Image height in pixels
+ * * `quality` - PNG compression level hint (1-100, maps to compression type)
+ * * `output` - Output buffer (pre-allocated, same size as input)
+ *
+ * # Returns
+ * Number of bytes written to output buffer
+ */
+#[wasm_bindgen]
+pub fn compress_png(
+    input: &[u8],
+    width: u32,
+    height: u32,
+    quality: u8,
+    output: &mut [u8],
+) -> usize {
+    // Validate inputs
+    if input.is_empty() || width == 0 || height == 0 {
+        web_sys::console::log_1(&"PNG compression: Validation failed - empty input or zero dimensions".into());
+        return 0;
+    }
+
+    let expected_size = (width * height * 4) as usize;
+    if input.len() != expected_size {
+        web_sys::console::log_2(&"PNG compression: Input size mismatch".into(),
+            &format!("expected {}, got {}", expected_size, input.len()).into());
+        return 0;
+    }
+
+    if quality < 1 || quality > 100 {
+        web_sys::console::log_2(&"PNG compression: Quality out of range".into(), &quality.into());
+        return 0;
+    }
+
+    if output.len() < input.len() {
+        web_sys::console::log_2(&"PNG compression: Output buffer too small".into(),
+            &format!("output: {}, input: {}", output.len(), input.len()).into());
+        return 0;
+    }
+
+    web_sys::console::log_1(&"Calling PNG compression...".into());
+
+    // Call PNG compression
+    match png::compress_to_png(input, width, height, quality, output) {
+        Ok(size) => {
+            web_sys::console::log_2(&"PNG compression success".into(), &size.into());
+            size
+        },
+        Err(e) => {
+            web_sys::console::log_2(&"PNG compression error".into(), &e.into());
+            0
+        }
+    }
 }
 
 /**

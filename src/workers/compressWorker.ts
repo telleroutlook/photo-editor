@@ -14,6 +14,8 @@ import type { CompressWasmApi } from '../types';
 let wasmModule: CompressWasmApi | null = null;
 let initialized = false;
 
+console.log('👋 compressWorker.ts loaded - Worker script started');
+
 // ============================================================================
 // WASM Module Loading
 // ============================================================================
@@ -23,23 +25,29 @@ let initialized = false;
  */
 async function loadWasmModule(): Promise<CompressWasmApi> {
   try {
-    console.log('🔄 Loading Compress WASM module...');
+    console.log('🔄 [CompressWorker] Loading Compress WASM module...');
 
-    // Dynamically import the compiled WASM module
-    const wasmUrl = new URL('/wasm/compress/photo_editor_compress.js', import.meta.url);
+    // Import the WASM glue code from src/assets
+    // Using relative path for proper Vite module resolution
+    console.log('📦 [CompressWorker] Import path:', '../assets/wasm/compress/photo_editor_compress.js');
+    const wasmModule = await import('../assets/wasm/compress/photo_editor_compress.js');
 
-    // Import and initialize WASM
-    const wasmModule = await import(wasmUrl.href);
+    console.log('📚 [CompressWorker] WASM JS file loaded, initializing...');
 
     // Initialize the WASM module (this loads the .wasm binary)
     await wasmModule.default();
 
-    console.log('✅ Compress WASM module loaded successfully');
-    console.log('📦 Module exports:', Object.keys(wasmModule));
+    console.log('✅ [CompressWorker] Compress WASM module loaded successfully');
+    console.log('📦 [CompressWorker] Module exports:', Object.keys(wasmModule));
 
     return wasmModule as CompressWasmApi;
   } catch (error) {
-    console.error('❌ Failed to load Compress WASM module:', error);
+    console.error('❌ [CompressWorker] Failed to load Compress WASM module:', error);
+    console.error('🔍 [CompressWorker] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined
+    });
     throw error;
   }
 }
@@ -181,8 +189,18 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
     // Convert ImageData to Uint8Array (RGBA format)
     const input = new Uint8Array(imageData);
 
+    console.log('📊 [CompressWorker] Input data:', {
+      size: input.length,
+      width,
+      height,
+      quality,
+      expectedPixels: width * height * 4
+    });
+
     // Allocate output buffer
     const output = new Uint8Array(input.length);
+
+    console.log('📦 [CompressWorker] Calling WASM compress_webp...');
 
     // Call WASM function
     const compressedSize = await wasmModule.compress_webp(
@@ -192,6 +210,54 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
       quality,
       output
     );
+
+    console.log('📊 [CompressWorker] WASM returned:', {
+      compressedSize,
+      type: typeof compressedSize,
+      outputFirst10: Array.from(output.slice(0, 10))
+    });
+
+    // Check if WASM compression failed (returned 0)
+    if (compressedSize === 0) {
+      console.warn('⚠️ [CompressWorker] WASM compression returned 0, using Canvas fallback');
+
+      // Fallback: Use OffscreenCanvas to compress the image
+      try {
+        const compressedBlob = await fallbackCanvasCompress(input, width, height, quality, 'image/webp');
+
+        const processingTime = performance.now() - startTime;
+
+        console.log(`✅ Canvas fallback compressed: ${input.length} → ${compressedBlob.size} bytes`);
+
+        // Convert Blob to Uint8Array
+        const compressedData = new Uint8Array(await compressedBlob.arrayBuffer());
+
+        sendMessage({
+          id: message.id,
+          type: MessageType.COMPRESS_WEBP,
+          success: true,
+          data: {
+            imageData: compressedData,
+            size: compressedBlob.size,
+            format: 'image/webp',
+            quality,
+          },
+          processingTime,
+        });
+        return;
+      } catch (fallbackError) {
+        console.error('❌ [CompressWorker] Canvas fallback also failed:', fallbackError);
+
+        sendMessage({
+          id: message.id,
+          type: MessageType.COMPRESS_WEBP,
+          success: false,
+          error: fallbackError instanceof Error ? fallbackError.message : 'Canvas fallback compression failed',
+          processingTime: performance.now() - startTime,
+        });
+        return;
+      }
+    }
 
     // Trim output buffer to actual compressed size
     const compressedData = output.slice(0, compressedSize);
@@ -222,6 +288,136 @@ async function handleCompressWebp(message: WorkerMessage<any>): Promise<void> {
       type: MessageType.COMPRESS_WEBP,
       success: false,
       error: error instanceof Error ? error.message : 'WebP compression failed',
+      processingTime,
+    });
+  }
+}
+
+/**
+ * Handle PNG compression operation
+ */
+async function handleCompressPng(message: WorkerMessage<any>): Promise<void> {
+  const startTime = performance.now();
+
+  try {
+    if (!initialized || !wasmModule) {
+      throw new Error('WASM module not initialized. Call INIT_WORKER first.');
+    }
+
+    const { imageData, width, height, quality } = message.payload;
+
+    // Validate inputs
+    if (!imageData || !width || !height || quality === undefined) {
+      throw new Error('Missing required parameters for PNG compression');
+    }
+
+    // Validate quality range
+    if (quality < 1 || quality > 100) {
+      throw new Error('Quality must be between 1 and 100');
+    }
+
+    // Convert ImageData to Uint8Array (RGBA format)
+    const input = new Uint8Array(imageData);
+
+    console.log('📊 [CompressWorker] Input data:', {
+      size: input.length,
+      width,
+      height,
+      quality,
+      expectedPixels: width * height * 4
+    });
+
+    // Allocate output buffer
+    const output = new Uint8Array(input.length);
+
+    console.log('📦 [CompressWorker] Calling WASM compress_png...');
+
+    // Call WASM function
+    const compressedSize = await wasmModule.compress_png(
+      input,
+      width,
+      height,
+      quality,
+      output
+    );
+
+    console.log('📊 [CompressWorker] WASM returned:', {
+      compressedSize,
+      type: typeof compressedSize,
+      outputFirst10: Array.from(output.slice(0, 10))
+    });
+
+    // Check if WASM compression failed (returned 0)
+    if (compressedSize === 0) {
+      console.warn('⚠️ [CompressWorker] WASM compression returned 0, using Canvas fallback');
+
+      // Fallback: Use OffscreenCanvas to compress the image
+      try {
+        const compressedBlob = await fallbackCanvasCompress(input, width, height, quality, 'image/png');
+
+        const processingTime = performance.now() - startTime;
+
+        console.log(`✅ Canvas fallback compressed: ${input.length} → ${compressedBlob.size} bytes`);
+
+        // Convert Blob to Uint8Array
+        const compressedData = new Uint8Array(await compressedBlob.arrayBuffer());
+
+        sendMessage({
+          id: message.id,
+          type: MessageType.COMPRESS_PNG,
+          success: true,
+          data: {
+            imageData: compressedData,
+            size: compressedBlob.size,
+            format: 'image/png',
+            quality,
+          },
+          processingTime,
+        });
+        return;
+      } catch (fallbackError) {
+        console.error('❌ [CompressWorker] Canvas fallback also failed:', fallbackError);
+
+        sendMessage({
+          id: message.id,
+          type: MessageType.COMPRESS_PNG,
+          success: false,
+          error: fallbackError instanceof Error ? fallbackError.message : 'Canvas fallback compression failed',
+          processingTime: performance.now() - startTime,
+        });
+        return;
+      }
+    }
+
+    // Trim output buffer to actual compressed size
+    const compressedData = output.slice(0, compressedSize);
+
+    const processingTime = performance.now() - startTime;
+
+    console.log(`✅ PNG compressed: ${input.length} → ${compressedSize} bytes (${quality}%)`);
+
+    sendMessage({
+      id: message.id,
+      type: MessageType.COMPRESS_PNG,
+      success: true,
+      data: {
+        imageData: compressedData,
+        size: compressedSize,
+        format: 'image/png',
+        quality,
+      },
+      processingTime,
+    });
+  } catch (error) {
+    const processingTime = performance.now() - startTime;
+
+    console.error('❌ PNG compression failed:', error);
+
+    sendMessage({
+      id: message.id,
+      type: MessageType.COMPRESS_PNG,
+      success: false,
+      error: error instanceof Error ? error.message : 'PNG compression failed',
       processingTime,
     });
   }
@@ -323,6 +519,49 @@ async function handleCompressToSize(message: WorkerMessage<any>): Promise<void> 
 // ============================================================================
 
 /**
+ * Fallback compression using OffscreenCanvas
+ * Used when WASM compression fails
+ */
+async function fallbackCanvasCompress(
+  input: Uint8Array,
+  width: number,
+  height: number,
+  quality: number,
+  format: 'image/jpeg' | 'image/webp' | 'image/png'
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Create ImageData from RGBA buffer
+      const imageData = new ImageData(new Uint8ClampedArray(input), width, height);
+
+      // Create OffscreenCanvas
+      const canvas = new OffscreenCanvas(width, height);
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) {
+        reject(new Error('Failed to get canvas context'));
+        return;
+      }
+
+      // Draw image data to canvas
+      ctx.putImageData(imageData, 0, 0);
+
+      // Convert to blob with specified format and quality
+      canvas.convertToBlob({
+        type: format,
+        quality: quality / 100
+      }).then(blob => {
+        resolve(blob);
+      }).catch(err => {
+        reject(err);
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
  * Send message back to main thread
  */
 function sendMessage(response: WorkerResponse): void {
@@ -357,6 +596,10 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
 
     case MessageType.COMPRESS_WEBP:
       await handleCompressWebp(message);
+      break;
+
+    case MessageType.COMPRESS_PNG:
+      await handleCompressPng(message);
       break;
 
     case MessageType.COMPRESS_TO_SIZE:

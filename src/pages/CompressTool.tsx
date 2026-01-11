@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { CompressControls } from '../components/compress';
 import { CompressionFormat } from '../types';
@@ -21,54 +21,14 @@ export const CompressTool = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Initialize compression worker
-  const { compressJpeg, compressWebp, compressToSize, loading: wasmLoading, error: wasmError } = useCompressWorker();
+  const { compressJpeg, compressWebp, compressPng, compressToSize, loading: wasmLoading, error: wasmError } = useCompressWorker();
 
-  if (!selectedImage) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-yellow-800 mb-2">⚠️ No Image Selected</h2>
-        <p className="text-yellow-700">Please upload and select an image first.</p>
-      </div>
-    );
-  }
-
-  const handleCompressChange = (params: { format: CompressionFormat; quality: number; targetSize?: number }) => {
+  // ✅ All useCallbacks must be declared before any conditional returns (React Hooks rule)
+  const handleCompressChange = useCallback((params: { format: CompressionFormat; quality: number; targetSize?: number }) => {
     setCompressParams(params);
-  };
+  }, []);
 
-  /**
-   * Convert ImageData to RGBA Uint8Array buffer
-   */
-  const imageToRGBA = async (file: File): Promise<Uint8Array> => {
-    const imageData = await fileToImageData(file);
-    // ImageData.data is already a Uint8ClampedArray, which is compatible with Uint8Array
-    return new Uint8Array(imageData.data);
-  };
-
-  /**
-   * Convert compressed buffer to a File object
-   */
-  const compressedToFile = (compressedData: Uint8Array, format: CompressionFormat, originalFile: File): File => {
-    const mimeTypes = {
-      [CompressionFormat.JPEG]: 'image/jpeg',
-      [CompressionFormat.WebP]: 'image/webp',
-      [CompressionFormat.PNG]: 'image/png',
-    };
-
-    const mimeType = mimeTypes[format];
-    const extension = mimeType.split('/')[1];
-
-    // Create new filename with extension
-    const originalName = originalFile.name.replace(/\.[^/.]+$/, '');
-    const newName = `${originalName}_compressed.${extension}`;
-
-    // Convert Uint8Array to regular ArrayBuffer to avoid SharedArrayBuffer issues
-    const buffer = new ArrayBuffer(compressedData.length);
-    new Uint8Array(buffer).set(compressedData);
-    return new File([buffer], newName, { type: mimeType });
-  };
-
-  const handleApplyCompress = async () => {
+  const handleApplyCompress = useCallback(async () => {
     if (!selectedImage) {
       alert('No image selected');
       return;
@@ -82,7 +42,8 @@ export const CompressTool = () => {
       }
 
       // Convert image to RGBA buffer
-      const rgbaBuffer = await imageToRGBA(selectedImage.file);
+      const imageData = await fileToImageData(selectedImage.file);
+      const rgbaBuffer = new Uint8Array(imageData.data);
 
       let result;
       const { format, quality, targetSize } = compressParams;
@@ -105,6 +66,14 @@ export const CompressTool = () => {
           selectedImage.height,
           quality
         );
+      } else if (format === CompressionFormat.PNG) {
+        // PNG compression
+        result = await compressPng(
+          rgbaBuffer,
+          selectedImage.width,
+          selectedImage.height,
+          quality
+        );
       } else {
         // JPEG compression
         result = await compressJpeg(
@@ -116,7 +85,20 @@ export const CompressTool = () => {
       }
 
       // Create new File from compressed data
-      const compressedFile = compressedToFile(result.imageData, format, selectedImage.file);
+      const mimeTypes = {
+        [CompressionFormat.JPEG]: 'image/jpeg',
+        [CompressionFormat.WebP]: 'image/webp',
+        [CompressionFormat.PNG]: 'image/png',
+      };
+      const mimeType = mimeTypes[format];
+      const extension = mimeType.split('/')[1];
+      const originalName = selectedImage.file.name.replace(/\.[^/.]+$/, '');
+      const newName = `${originalName}_compressed.${extension}`;
+
+      // Convert Uint8Array to regular ArrayBuffer to avoid SharedArrayBuffer issues
+      const buffer = new ArrayBuffer(result.imageData.length);
+      new Uint8Array(buffer).set(result.imageData);
+      const compressedFile = new File([buffer], newName, { type: mimeType });
 
       // Display success message
       const mode = targetSize ? 'Target Size' : 'Quality';
@@ -143,16 +125,26 @@ export const CompressTool = () => {
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [selectedImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     const defaultParams = {
       format: CompressionFormat.WebP,
       quality: 80,
       targetSize: undefined,
     };
     setCompressParams(defaultParams);
-  };
+  }, []);
+
+  // ✅ Early return after all hooks are declared
+  if (!selectedImage) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+        <h2 className="text-xl font-bold text-yellow-800 mb-2">⚠️ No Image Selected</h2>
+        <p className="text-yellow-700">Please upload and select an image first.</p>
+      </div>
+    );
+  }
 
   // Get original file size from File object
   const originalSize = selectedImage.file.size;

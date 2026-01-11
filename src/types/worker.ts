@@ -22,6 +22,7 @@ export enum MessageType {
   // Compress module messages
   COMPRESS_JPEG = 'COMPRESS_JPEG',
   COMPRESS_WEBP = 'COMPRESS_WEBP',
+  COMPRESS_PNG = 'COMPRESS_PNG',
   COMPRESS_TO_SIZE = 'COMPRESS_TO_SIZE',
 
   // BgRemove module messages

@@ -1,30 +1,30 @@
-use image::{ImageBuffer, RgbaImage, DynamicImage, ImageEncoder, EncodableLayout};
-use image::codecs::jpeg::JpegEncoder;
+use image::{ImageBuffer, RgbaImage, DynamicImage, ImageEncoder};
+use image::codecs::webp::WebPEncoder;
 use std::io::Cursor;
 use wasm_bindgen::prelude::*;
 
 /**
- * Compress RGBA image data to JPEG format
+ * Compress RGBA image data to WebP format
  *
  * # Arguments
  * * `input` - RGBA image data (4 bytes per pixel, row-major order)
  * * `width` - Image width in pixels
  * * `height` - Image height in pixels
- * * `quality` - JPEG quality (1-100)
- * * `output` - Output buffer for compressed JPEG data
+ * * `quality` - WebP quality (1-100)
+ * * `output` - Output buffer for compressed WebP data
  *
  * # Returns
  * Ok(number_of_bytes_written) on success
  * Err(error_message) on failure
  */
-pub fn compress_to_jpeg(
+pub fn compress_to_webp(
     input: &[u8],
     width: u32,
     height: u32,
     quality: u8,
     output: &mut [u8],
 ) -> Result<usize, &'static str> {
-    web_sys::console::log_1(&format!("compress_to_jpeg: {}x{}, quality={}", width, height, quality).into());
+    web_sys::console::log_1(&format!("compress_to_webp: {}x{}, quality={}", width, height, quality).into());
 
     // Create RGBA image from input buffer
     let rgba_image: RgbaImage =
@@ -41,43 +41,41 @@ pub fn compress_to_jpeg(
 
     let dynamic_image = DynamicImage::ImageRgba8(rgba_image);
 
-    web_sys::console::log_1(&"Converting RGBA to RGB...".into());
+    web_sys::console::log_1(&"Creating WebP encoder...".into());
 
-    // Convert RGBA to RGB (JPEG doesn't support alpha channel)
-    let rgb_image = dynamic_image.to_rgb8();
-
-    web_sys::console::log_1(&"Creating JPEG encoder...".into());
-
-    // Encode to JPEG with specified quality
+    // Encode to WebP
     let mut buffer = Cursor::new(Vec::new());
-    let encoder = JpegEncoder::new_with_quality(&mut buffer, quality.into());
+
+    // Use lossless WebP encoding (image crate 0.25 only supports lossless)
+    web_sys::console::log_1(&"Using lossless WebP encoding".into());
+    let encoder = WebPEncoder::new_lossless(&mut buffer);
 
     web_sys::console::log_1(&"Encoding image...".into());
 
     match encoder.write_image(
-        rgb_image.as_bytes(),
+        dynamic_image.as_bytes(),
         width,
         height,
-        image::ExtendedColorType::Rgb8,
+        image::ExtendedColorType::Rgba8,  // WebP supports RGBA
     ) {
         Ok(_) => {
-            let jpeg_data = buffer.into_inner();
-            web_sys::console::log_2(&"JPEG encoded successfully, size:".into(), &jpeg_data.len().into());
+            let webp_data = buffer.into_inner();
+            web_sys::console::log_2(&"WebP encoded successfully, size:".into(), &webp_data.len().into());
 
             // Copy to output buffer
-            if jpeg_data.len() > output.len() {
+            if webp_data.len() > output.len() {
                 web_sys::console::log_2(&"Output buffer too small".into(),
-                    &format!("needed {}, got {}", jpeg_data.len(), output.len()).into());
+                    &format!("needed {}, got {}", webp_data.len(), output.len()).into());
                 return Err("Output buffer too small for compressed data");
             }
 
-            output[..jpeg_data.len()].copy_from_slice(&jpeg_data);
-            web_sys::console::log_2(&"Compression complete, copied".into(), &jpeg_data.len().into());
-            Ok(jpeg_data.len())
+            output[..webp_data.len()].copy_from_slice(&webp_data);
+            web_sys::console::log_2(&"Compression complete, copied".into(), &webp_data.len().into());
+            Ok(webp_data.len())
         }
         Err(e) => {
-            web_sys::console::log_1(&format!("JPEG encoding error: {:?}", e).into());
-            Err("JPEG encoding failed")
+            web_sys::console::log_1(&format!("WebP encoding error: {:?}", e).into());
+            Err("WebP encoding failed")
         }
     }
 }
@@ -87,7 +85,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_compress_to_jpeg_basic() {
+    fn test_compress_to_webp_basic() {
         // Create a simple 2x2 red RGBA image
         let rgba_data = vec![
             255, 0, 0, 255,  // Red pixel
@@ -97,20 +95,20 @@ mod tests {
         ];
 
         let mut output = vec![0u8; 4096];
-        let result = compress_to_jpeg(&rgba_data, 2, 2, 80, &mut output);
+        let result = compress_to_webp(&rgba_data, 2, 2, 80, &mut output);
 
         assert!(result.is_ok());
         assert!(result.unwrap() > 0);
     }
 
     #[test]
-    fn test_compress_to_jpeg_quality_range() {
+    fn test_compress_to_webp_quality_range() {
         let rgba_data = vec![255u8; 16]; // 2x2 white image
         let mut output = vec![0u8; 4096];
 
         // Test valid quality values
         for quality in [1, 50, 100] {
-            let result = compress_to_jpeg(&rgba_data, 2, 2, quality, &mut output);
+            let result = compress_to_webp(&rgba_data, 2, 2, quality, &mut output);
             assert!(result.is_ok());
         }
     }
