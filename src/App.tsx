@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useAppStore } from './store/appStore';
 import { useImageStore } from './store/imageStore';
 import { WorkspaceLayout } from './layouts/WorkspaceLayout';
@@ -873,18 +873,6 @@ function App() {
       );
     }
 
-    // Memoize imageData for CropCanvas to prevent unnecessary re-renders
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const cropImageData = useMemo(
-      () => ({
-        url: currentImage.url,
-        width: currentImage.width,
-        height: currentImage.height,
-      }),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [currentImage.url, currentImage.width, currentImage.height]
-    );
-
     // Feature-specific canvas rendering
     switch (currentFeature) {
       case 'crop':
@@ -897,7 +885,11 @@ function App() {
           }>
             <CropCanvas
               imageId={currentImage.id}
-              imageData={cropImageData}
+              imageData={{
+                url: currentImage.url,
+                width: currentImage.width,
+                height: currentImage.height,
+              }}
               initialCropRect={cropRect}
               onCropChange={handleCropChange}
             />
