@@ -8,6 +8,7 @@ import { WorkspaceLayout } from './layouts/WorkspaceLayout';
 import { FileList } from './components/upload/FileList';
 import { UploadZone } from './components/upload/UploadZone';
 import { PasteHandler } from './components/upload/PasteHandler';
+import { Undo, Redo } from 'lucide-react';
 
 // Canvas Views
 import { PreviewCanvas } from './components/preview/PreviewCanvas';
@@ -75,7 +76,7 @@ function App() {
   const [isCompressing, setIsCompressing] = useState(false);
 
   const { compressJpeg, compressWebp, compressPng, compressToSize, error: wasmError } = useCompressWorker();
-  const { cropImage, rotateImage, flipImage, resizeImage } = useCoreWorker();
+  const { cropImage, rotateImage, flipImage, resizeImage, initialized: coreInitialized, loading: coreLoading } = useCoreWorker();
 
   // ============= RESIZE TOOL STATE =============
   const [resizeParams, setResizeParams] = useState<{
@@ -101,6 +102,137 @@ function App() {
     height: currentImage?.height || 0,
   });
   const [isCropping, setIsCropping] = useState(false);
+
+  // ============= HISTORY STATE (Undo/Redo) =============
+  interface HistoryState {
+    file: File;
+    width: number;
+    height: number;
+    cropRect: CropRect;
+  }
+
+  const [history, setHistory] = useState<HistoryState[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Save current state to history
+  const saveToHistory = useCallback(() => {
+    if (!currentImage) return;
+
+    const state: HistoryState = {
+      file: currentImage.file,
+      width: currentImage.width,
+      height: currentImage.height,
+      cropRect: { ...cropRect },
+    };
+
+    // Remove any future states if we're not at the end
+    const newHistory = historyIndex < history.length - 1
+      ? [...history.slice(0, historyIndex + 1), state]
+      : [...history, state];
+
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+
+    // Limit history to 50 states to prevent memory issues
+    if (newHistory.length > 50) {
+      setHistory(newHistory.slice(-50));
+      setHistoryIndex(49);
+    }
+
+    console.log('💾 Saved to history, index:', historyIndex + 1, 'total:', newHistory.length);
+  }, [currentImage, cropRect, history, historyIndex]);
+
+  // Undo
+  const undo = useCallback(async () => {
+    if (historyIndex <= 0) {
+      console.log('⚠️ Cannot undo - at beginning of history');
+      return;
+    }
+
+    const newIndex = historyIndex - 1;
+    const prevState = history[newIndex];
+
+    if (prevState) {
+      await updateCurrentImage(prevState.file, prevState.width, prevState.height);
+      setCropRect(prevState.cropRect);
+      setHistoryIndex(newIndex);
+
+      console.log('↩️ Undid to index:', newIndex);
+    }
+  }, [history, historyIndex]);
+
+  // Redo
+  const redo = useCallback(async () => {
+    if (historyIndex >= history.length - 1) {
+      console.log('⚠️ Cannot redo - at end of history');
+      return;
+    }
+
+    const newIndex = historyIndex + 1;
+    const nextState = history[newIndex];
+
+    if (nextState) {
+      await updateCurrentImage(nextState.file, nextState.width, nextState.height);
+      setCropRect(nextState.cropRect);
+      setHistoryIndex(newIndex);
+
+      console.log('↪️ Redid to index:', newIndex);
+    }
+  }, [history, historyIndex]);
+
+  // Update current image in store
+  const updateCurrentImage = useCallback(async (file: File, width: number, height: number) => {
+    const { images, selectedImageId } = useImageStore.getState();
+
+    if (!selectedImageId) return;
+
+    // Create new URL
+    const url = URL.createObjectURL(file);
+
+    // Revoke old URL
+    const oldImage = images.find(img => img.id === selectedImageId);
+    if (oldImage) {
+      try {
+        URL.revokeObjectURL(oldImage.url);
+      } catch (e) {
+        console.warn('Failed to revoke old URL:', e);
+      }
+    }
+
+    // Update images array
+    setHistory(prevState => {
+      const updatedImages = images.map(img =>
+        img.id === selectedImageId
+          ? { ...img, file, url, width, height, size: file.size }
+          : img
+      );
+
+      // Update the store
+      useImageStore.setState({ images: updatedImages });
+
+      return prevState;
+    });
+  }, []);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z or Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+      // Ctrl+Shift+Z or Ctrl+Y or Cmd+Shift+Z for redo
+      if (((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) ||
+          ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   // ============= BGREMOVE TOOL STATE =============
   const [bgRemoveImageData, setBgRemoveImageData] = useState<Uint8Array | null>(null);
@@ -576,12 +708,28 @@ function App() {
   const handleApplyCrop = useCallback(async () => {
     if (!currentImage) return;
 
+    // ✅ Check if WASM worker is initialized
+    if (!coreInitialized || coreLoading) {
+      alert('WASM module is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     setIsCropping(true);
     setLoading(true, 'Cropping image...');
     try {
+      // ✅ Save current state to history before applying crop
+      saveToHistory();
+
       // Convert image to RGBA buffer
       const imageData = await fileToImageData(currentImage.file);
       const rgbaBuffer = new Uint8Array(imageData.data);
+
+      console.log('🔧 Calling cropImage with:', {
+        width: currentImage.width,
+        height: currentImage.height,
+        cropRect,
+        bufferSize: rgbaBuffer.length,
+      });
 
       // Send to WASM worker for cropping
       const result = await cropImage(rgbaBuffer, currentImage.width, currentImage.height, cropRect);
@@ -900,6 +1048,26 @@ function App() {
       <WorkspaceLayout
         propertiesPanel={renderControls()}
         bottomPanel={<FileList variant="filmstrip" />}
+        undoRedoButtons={
+          <div className="flex items-center gap-1">
+            <button
+              onClick={undo}
+              disabled={historyIndex <= 0}
+              className="p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo size={16} />
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyIndex >= history.length - 1}
+              className="p-2 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              title="Redo (Ctrl+Shift+Z or Ctrl+Y)"
+            >
+              <Redo size={16} />
+            </button>
+          </div>
+        }
       >
         {renderCanvas()}
       </WorkspaceLayout>

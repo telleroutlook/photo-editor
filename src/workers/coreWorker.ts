@@ -19,6 +19,7 @@ import type { CoreWasmApi } from '../types';
 // Worker state
 let wasmModule: CoreWasmApi | null = null;
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 
 /**
  * Initialize WASM module
@@ -28,46 +29,60 @@ async function initWasm(): Promise<void> {
     return;
   }
 
-  try {
-    console.log('🔄 Loading Core WASM module...');
-
-    // Dynamically import the compiled WASM module
-    const wasmUrl = new URL('/wasm/core/photo_editor_core.js', import.meta.url);
-    const loadedModule = await import(/* @vite-ignore */ wasmUrl.href);
-
-    // Initialize the WASM module
-    await loadedModule.default();
-
-    // Assign to global variable (NOT local variable to avoid shadowing)
-    wasmModule = loadedModule as CoreWasmApi;
-
-    console.log('✅ Core WASM module loaded successfully');
-    console.log('📦 Module exports:', Object.keys(loadedModule));
-    console.log('📦 CropRect class:', loadedModule.CropRect);
-
-    initialized = true;
-
-    sendMessage({
-      id: generateMessageId(),
-      type: MessageType.INIT_WORKER,
-      success: true,
-      data: {
-        message: 'Core WASM module loaded successfully',
-        moduleType: 'wasm',
-        functions: Object.keys(loadedModule),
-      },
-      processingTime: 0,
-    });
-  } catch (error) {
-    console.error('Failed to load Core WASM module:', error);
-    sendMessage({
-      id: generateMessageId(),
-      type: MessageType.INIT_WORKER,
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      processingTime: 0,
-    });
+  // ✅ If initialization is in progress, wait for it
+  if (initPromise) {
+    return initPromise;
   }
+
+  // ✅ Create initialization promise
+  initPromise = (async () => {
+    try {
+      console.log('🔄 [Worker] Loading Core WASM module...');
+
+      // Dynamically import the compiled WASM module
+      const wasmUrl = new URL('/wasm/core/photo_editor_core.js', import.meta.url);
+      const loadedModule = await import(/* @vite-ignore */ wasmUrl.href);
+
+      // Initialize the WASM module
+      await loadedModule.default();
+
+      // Assign to global variable (NOT local variable to avoid shadowing)
+      wasmModule = loadedModule as CoreWasmApi;
+
+      console.log('✅ [Worker] Core WASM module loaded successfully');
+      console.log('📦 [Worker] Module exports:', Object.keys(loadedModule));
+      console.log('📦 [Worker] CropRect class:', loadedModule.CropRect);
+
+      initialized = true;
+
+      sendMessage({
+        id: generateMessageId(),
+        type: MessageType.INIT_WORKER,
+        success: true,
+        data: {
+          message: 'Core WASM module loaded successfully',
+          moduleType: 'wasm',
+          functions: Object.keys(loadedModule),
+        },
+        processingTime: 0,
+      });
+    } catch (error) {
+      console.error('❌ [Worker] Failed to load Core WASM module:', error);
+      sendMessage({
+        id: generateMessageId(),
+        type: MessageType.INIT_WORKER,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        processingTime: 0,
+      });
+      throw error;
+    } finally {
+      // ✅ Clear promise after completion (success or failure)
+      initPromise = null;
+    }
+  })();
+
+  return initPromise;
 }
 
 /**
@@ -77,19 +92,61 @@ async function handleCropImage(message: WorkerMessage<CropImagePayload>): Promis
   const startTime = performance.now();
 
   try {
+    // ✅ Wait for WASM initialization to complete
+    await initWasm();
+
+    // ✅ Double-check initialization state
+    if (!initialized || !wasmModule) {
+      throw new Error('WASM module not initialized. Please wait for initialization to complete.');
+    }
+
     const { imageData, width, height, cropRect } = message.payload;
 
-    // Validate inputs
-    if (!imageData || !width || !height || !cropRect) {
-      throw new Error('Missing required parameters for crop');
+    // Validate inputs with detailed error messages
+    if (!imageData) {
+      throw new Error('Missing imageData parameter');
+    }
+    if (!width || typeof width !== 'number') {
+      throw new Error(`Invalid width parameter: ${width}`);
+    }
+    if (!height || typeof height !== 'number') {
+      throw new Error(`Invalid height parameter: ${height}`);
+    }
+    if (!cropRect) {
+      throw new Error('Missing cropRect parameter');
+    }
+
+    // Validate cropRect dimensions
+    const { x, y, width: cropWidth, height: cropHeight } = cropRect;
+    if (typeof x !== 'number' || typeof y !== 'number' ||
+        typeof cropWidth !== 'number' || typeof cropHeight !== 'number') {
+      throw new Error(`Invalid cropRect: {x: ${x}, y: ${y}, width: ${cropWidth}, height: ${cropHeight}}`);
+    }
+
+    if (cropWidth <= 0 || cropHeight <= 0) {
+      throw new Error(`Crop dimensions must be positive: width=${cropWidth}, height=${cropHeight}`);
+    }
+
+    if (x >= width || y >= height) {
+      throw new Error(`Crop position out of bounds: x=${x} (max ${width - 1}), y=${y} (max ${height - 1})`);
+    }
+
+    if (x + cropWidth > width || y + cropHeight > height) {
+      throw new Error(`Crop extends beyond image: ${x}+${cropWidth} > ${width} or ${y}+${cropHeight} > ${height}`);
     }
 
     // Convert ArrayBuffer to Uint8Array (RGBA format)
-    const input = new Uint8Array(imageData);
+    // ✅ Create a fresh copy to avoid any ArrayBuffer reference issues
+    const tempInput = new Uint8Array(imageData);
+    const input = new Uint8Array(tempInput.length);
+    input.set(tempInput);
 
     // Allocate output buffer
-    const outputSize = cropRect.width * cropRect.height * 4; // RGBA
+    // ✅ Create a fresh buffer to ensure it's properly allocated
+    const outputSize = cropWidth * cropHeight * 4; // RGBA
     const output = new Uint8Array(outputSize);
+    // Zero-initialize to ensure clean memory
+    output.fill(0);
 
     // Call WASM function
     if (!wasmModule) {
@@ -105,13 +162,18 @@ async function handleCropImage(message: WorkerMessage<CropImagePayload>): Promis
     );
 
     try {
-      void (await wasmModule.crop_image(
+      console.log('🔧 [Worker] Calling crop_image WASM function...');
+
+      // ✅ Call WASM function and properly handle Result return type
+      const result = await wasmModule.crop_image(
         input,
-        width,
-        height,
+        Number(width),
+        Number(height),
         wasmCropRect,  // Pass CropRect class instance
         output
-      )); // Return value not currently used
+      );
+
+      console.log('✅ [Worker] crop_image completed successfully, result:', result);
 
       const processingTime = performance.now() - startTime;
 
@@ -120,7 +182,7 @@ async function handleCropImage(message: WorkerMessage<CropImagePayload>): Promis
         id: message.id,
         type: MessageType.CROP_IMAGE,
         success: true,
-        data: { imageData: output, width: cropRect.width, height: cropRect.height },
+        data: { imageData: output, width: cropWidth, height: cropHeight },
         processingTime,
       });
     } finally {
@@ -217,8 +279,8 @@ async function handleFlipImage(message: WorkerMessage<FlipImagePayload>): Promis
   try {
     const { imageData, width, height, direction } = message.payload;
 
-    // Validate inputs
-    if (!imageData || !width || !height || !direction) {
+    // Validate inputs - use explicit undefined check since direction can be 0 (Horizontal)
+    if (!imageData || !width || !height || direction === undefined) {
       throw new Error('Missing required parameters for flip');
     }
 

@@ -32,12 +32,14 @@ interface WorkspaceLayoutProps {
   children: React.ReactNode; // The Canvas
   propertiesPanel: React.ReactNode; // The Right Sidebar content
   bottomPanel?: React.ReactNode; // The File List (optional)
+  undoRedoButtons?: React.ReactNode; // Undo/Redo buttons
 }
 
 export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   children,
   propertiesPanel,
-  bottomPanel
+  bottomPanel,
+  undoRedoButtons
 }) => {
   const { currentFeature, setCurrentFeature, darkMode, toggleDarkMode } = useAppStore();
   const { getSelectedImage, undo, redo, canUndo, canRedo } = useImageStore();

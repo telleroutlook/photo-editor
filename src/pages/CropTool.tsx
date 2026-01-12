@@ -88,14 +88,15 @@ export const CropTool = () => {
       // Send to WASM worker for cropping
       const worker = getCoreWorker();
       const response = await worker.sendMessage<{
-        imageData: ImageData;
+        imageData: Uint8Array;
         width: number;
         height: number;
       }>({
         id: `${Date.now()}-crop`,
         type: MessageType.CROP_IMAGE,
         payload: {
-          imageData: imageData.data.buffer,
+          // ✅ Pass Uint8ClampedArray directly (Worker will convert to Uint8Array)
+          imageData: imageData.data as unknown as Uint8Array,
           width: selectedImage.width,
           height: selectedImage.height,
           cropRect,
@@ -108,8 +109,9 @@ export const CropTool = () => {
       }
 
       // Convert result back to ImageData
+      // ✅ response.data.imageData is already a Uint8Array
       const croppedImageData = new ImageData(
-        new Uint8ClampedArray(response.data.imageData.data),
+        new Uint8ClampedArray(response.data.imageData),
         response.data.width,
         response.data.height
       );

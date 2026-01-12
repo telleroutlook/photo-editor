@@ -31,12 +31,27 @@ pub fn crop_image(
         return Ok(0);
     }
 
+    // ✅ Add explicit bounds checking to prevent panics
     for row in 0..crop_rect.height {
         let src_y = crop_rect.y + row;
         let src_x = crop_rect.x;
         let src_idx = utils::pixel_index(width, src_x, src_y);
         let row_bytes = (crop_rect.width * 4) as usize;
         let dst_idx = (row * crop_rect.width * 4) as usize;
+
+        // Check bounds BEFORE slicing to prevent panic
+        if src_idx + row_bytes > input.len() {
+            return Err(JsValue::from_str(&format!(
+                "Source slice out of bounds: row={}, src_idx={}, row_bytes={}, input.len()={}",
+                row, src_idx, row_bytes, input.len()
+            )));
+        }
+        if dst_idx + row_bytes > output.len() {
+            return Err(JsValue::from_str(&format!(
+                "Destination slice out of bounds: row={}, dst_idx={}, row_bytes={}, output.len()={}",
+                row, dst_idx, row_bytes, output.len()
+            )));
+        }
 
         output[dst_idx..dst_idx + row_bytes]
             .copy_from_slice(&input[src_idx..src_idx + row_bytes]);

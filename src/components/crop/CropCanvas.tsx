@@ -202,15 +202,10 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         evented: false,
       });
 
+      // Add image first (it will be at the bottom layer)
       currentCanvas.add(img);
-      // Ensure image is at the bottom by re-adding it first
-      const objs = currentCanvas.getObjects();
-      if (objs.length > 1) {
-        currentCanvas.remove(img);
-        currentCanvas.add(img);
-        img.selectable = false;
-        img.evented = false;
-      }
+      img.selectable = false;
+      img.evented = false;
 
       // Create crop rectangle overlay
       const initialRect = initialCropRectRef.current;
@@ -232,19 +227,25 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
         top: rectTop,
         width: rectWidth,
         height: rectHeight,
-        fill: 'rgba(59, 130, 246, 0.1)',
+        fill: 'rgba(59, 130, 246, 0.15)',
         stroke: '#3b82f6',
-        strokeWidth: 2,
-        cornerColor: '#3b82f6',
-        cornerStrokeColor: '#ffffff',
-        cornerSize: 12,
-        transparentCorners: false,
-        cornerStyle: 'circle',
+        strokeWidth: 3,
+        cornerColor: '#2563eb',        // Darker blue for better contrast
+        cornerStrokeColor: '#ffffff',   // White border for visibility
+        cornerSize: 20,                 // Increased from 12 to 20 for better usability
+        transparentCorners: false,      // Solid corners for better visibility
+        cornerStyle: 'circle',          // Circle style for modern look
         lockRotation: true,
+        // Ensure corner controls are always on top
+        selectable: true,
+        hasControls: true,
       });
 
       cropRectRef.current = cropRect;
+      // ✅ Add crop rectangle AFTER image so it's on top (Fabric.js layer order)
       currentCanvas.add(cropRect);
+      // ✅ In Fabric.js, objects are rendered in array order (index 0 = bottom)
+      // Since we added image first, then cropRect, cropRect should be on top
       currentCanvas.setActiveObject(cropRect);
 
       // Update parent with initial crop rect
@@ -326,7 +327,8 @@ export const CropCanvas: React.FC<CropCanvasProps> = ({
 
   return (
     <div className="w-full">
-      <div className="relative bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+      {/* ✅ Remove overflow-hidden and add padding for corner controls */}
+      <div className="relative bg-gray-800 rounded-lg shadow-lg p-6">
         <canvas ref={canvasRef} />
         {!imageLoaded && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800 text-white">
