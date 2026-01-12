@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useImageStore } from '../store/imageStore';
+import { showErrorToast } from '../store/toastStore';
 import { CropCanvas, CropControls } from '../components/crop';
-import { CropRect, MessageType } from '../types';
+import { CropRect, MessageType, OperationType } from '../types';
 import { getCoreWorker } from '../utils/workerManager';
 
 export const CropTool = () => {
-  const { getSelectedImage } = useImageStore();
+  const { getSelectedImage, applyOperation } = useImageStore();
   const selectedImage = getSelectedImage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cropRect, setCropRect] = useState<CropRect>({
@@ -15,14 +16,12 @@ export const CropTool = () => {
     height: selectedImage?.height ?? 0,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
 
   // Debug logging (must be after all state declarations)
   const cropToolRenderCountRef = useRef(0);
   cropToolRenderCountRef.current += 1;
   console.log(`🔄 CropTool render #${cropToolRenderCountRef.current}`, {
     cropRect,
-    resultUrl,
   });
 
   // ✅ Store initial crop rect once and never change it
@@ -48,15 +47,6 @@ export const CropTool = () => {
     }),
     [selectedImage?.url, selectedImage?.width, selectedImage?.height]
   );
-
-  // Cleanup result URL on unmount
-  useEffect(() => {
-    return () => {
-      if (resultUrl) {
-        URL.revokeObjectURL(resultUrl);
-      }
-    };
-  }, [resultUrl]);
 
   if (!selectedImage) {
     return (
@@ -133,11 +123,23 @@ export const CropTool = () => {
         resultCtx.putImageData(croppedImageData, 0, 0);
       }
 
-      // Convert to blob and create URL
+      // Convert to blob and apply operation
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
+          const newFile = new File(
+            [blob],
+            selectedImage.fileName.replace(/\.[^/.]+$/, '_cropped.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(selectedImage.id, newFile, {
+            type: OperationType.CROP,
+            params: cropRect,
+            timestamp: Date.now()
+          }, response.data!.width, response.data!.height);
+
+          // Reset crop selection to full image (which is now the cropped result)
+          setCropRect({ x: 0, y: 0, width: response.data!.width, height: response.data!.height });
         }
       }, 'image/png');
 
@@ -148,7 +150,7 @@ export const CropTool = () => {
       });
     } catch (error) {
       console.error('❌ Crop failed:', error);
-      alert(`Crop failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showErrorToast('Crop Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsProcessing(false);
     }
@@ -162,7 +164,6 @@ export const CropTool = () => {
       height: selectedImage.height,
     };
     setCropRect(fullImageCrop);
-    setResultUrl(null);
   };
 
   return (
@@ -177,20 +178,6 @@ export const CropTool = () => {
           Image: {selectedImage.file.name} ({selectedImage.width} × {selectedImage.height} px)
         </p>
       </div>
-
-      {/* Result Preview */}
-      {resultUrl && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-3">✅ Crop Result</h3>
-          <div className="flex items-center gap-4">
-            <img src={resultUrl} alt="Cropped result" className="max-w-xs rounded-lg shadow" />
-            <div className="text-sm text-green-700">
-              <p>New size: {cropRect.width} × {cropRect.height} px</p>
-              <p>Position: ({cropRect.x}, {cropRect.y})</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Crop Canvas */}
       <CropCanvas

@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { ImageFile, ProcessedImage, AnyOperation } from '../types';
+import { ImageFile, ProcessedImage, AnyOperation, ImageHistoryState, OperationType, ImportOperation } from '../types';
 import { generateMessageId } from '../types/worker';
 
 interface ImageState {
@@ -12,6 +12,10 @@ interface ImageState {
   images: ImageFile[];
   selectedImageId: string | null;
   processedImages: Map<string, ProcessedImage>;
+
+  // History management
+  history: Map<string, ImageHistoryState[]>;
+  historyIndex: Map<string, number>;
 
   // Memory management
   maxImages: number;
@@ -37,6 +41,13 @@ interface ImageState {
   setProcessedImage: (imageId: string, processed: ProcessedImage) => void;
   getProcessedImage: (imageId: string) => ProcessedImage | undefined;
 
+  // History actions
+  undo: (imageId: string) => void;
+  redo: (imageId: string) => void;
+  canUndo: (imageId: string) => boolean;
+  canRedo: (imageId: string) => boolean;
+  applyOperation: (imageId: string, newFile: File, operation: AnyOperation, width?: number, height?: number) => void;
+
   // Helpers
   getImageById: (id: string) => ImageFile | undefined;
   getSelectedImage: () => ImageFile | undefined;
@@ -47,6 +58,8 @@ export const useImageStore = create<ImageState>((set, get) => ({
   images: [],
   selectedImageId: null,
   processedImages: new Map(),
+  history: new Map(),
+  historyIndex: new Map(),
 
   // Memory management settings
   maxImages: 50, // Maximum number of images to keep in memory
@@ -84,10 +97,28 @@ export const useImageStore = create<ImageState>((set, get) => ({
       })
     );
 
+    // Initialize history for new images
+    const newHistory = new Map(get().history);
+    const newHistoryIndex = new Map(get().historyIndex);
+
+    processedFiles.forEach(img => {
+      newHistory.set(img.id, [{
+        file: img.file,
+        url: img.url,
+        width: img.width,
+        height: img.height,
+        operation: { type: OperationType.IMPORT, timestamp: Date.now() } as ImportOperation,
+        timestamp: Date.now()
+      }]);
+      newHistoryIndex.set(img.id, 0);
+    });
+
     // Add to store
     set((state) => ({
       images: [...state.images, ...processedFiles],
       selectedImageId: processedFiles[0]?.id ?? state.selectedImageId,
+      history: newHistory,
+      historyIndex: newHistoryIndex,
     }));
 
     // Check if cleanup is needed
@@ -159,6 +190,20 @@ export const useImageStore = create<ImageState>((set, get) => ({
         } catch (e) {
           console.warn('Failed to revoke URL for image:', id, e);
         }
+
+        // Cleanup history URLs
+        const history = state.history.get(id);
+        if (history) {
+          history.forEach(h => {
+            if (h.url !== imageToRemove.url) {
+              try {
+                URL.revokeObjectURL(h.url);
+              } catch (e) {
+                console.warn('Failed to revoke history URL:', e);
+              }
+            }
+          });
+        }
       }
 
       // Remove from images array
@@ -174,7 +219,13 @@ export const useImageStore = create<ImageState>((set, get) => ({
       const processedImages = new Map(state.processedImages);
       processedImages.delete(id);
 
-      return { images, selectedImageId, processedImages };
+      // Remove from history
+      const history = new Map(state.history);
+      const historyIndex = new Map(state.historyIndex);
+      history.delete(id);
+      historyIndex.delete(id);
+
+      return { images, selectedImageId, processedImages, history, historyIndex };
     });
   },
 
@@ -195,6 +246,15 @@ export const useImageStore = create<ImageState>((set, get) => ({
     images.forEach((img) => {
       try {
         URL.revokeObjectURL(img.url);
+        // Cleanup history as well
+        const history = get().history.get(img.id);
+        history?.forEach(h => {
+          try {
+            URL.revokeObjectURL(h.url);
+          } catch (e) {
+            console.warn('Failed to revoke history URL during clearAll:', e);
+          }
+        });
       } catch (e) {
         console.warn('Failed to revoke URL during clearAll:', img.id, e);
       }
@@ -204,6 +264,8 @@ export const useImageStore = create<ImageState>((set, get) => ({
       images: [],
       selectedImageId: null,
       processedImages: new Map(),
+      history: new Map(),
+      historyIndex: new Map(),
     });
   },
 
@@ -275,6 +337,136 @@ export const useImageStore = create<ImageState>((set, get) => ({
   getSelectedImage: () => {
     const { images, selectedImageId } = get();
     return images.find((img) => img.id === selectedImageId);
+  },
+
+  // ============================================================================
+  // History Actions
+  // ============================================================================
+
+  /**
+   * Apply an operation and save to history
+   */
+  applyOperation: (imageId: string, newFile: File, operation: AnyOperation, newWidth?: number, newHeight?: number) => {
+    const { images, history, historyIndex } = get();
+    const currentImage = images.find(img => img.id === imageId);
+    if (!currentImage) return;
+
+    const updateHistory = (w: number, h: number) => {
+      const imageHistory = history.get(imageId) || [];
+      const currentIndex = historyIndex.get(imageId) ?? -1;
+
+      // Truncate future history
+      const newHistory = imageHistory.slice(0, currentIndex + 1);
+
+      const newState: ImageHistoryState = {
+        file: newFile,
+        url: URL.createObjectURL(newFile),
+        width: w,
+        height: h,
+        operation,
+        timestamp: Date.now()
+      };
+
+      newHistory.push(newState);
+
+      // Limit history size (e.g., 50)
+      if (newHistory.length > 50) {
+        const removed = newHistory.shift();
+        if (removed && removed.url !== newState.url) {
+          try {
+            URL.revokeObjectURL(removed.url);
+          } catch (e) {
+            console.warn('Failed to revoke old history URL:', e);
+          }
+        }
+      }
+
+      console.log('📝 Operation applied:', operation.type, `(${imageId.slice(0, 8)})`);
+
+      set(state => ({
+        images: state.images.map(img =>
+          img.id === imageId
+            ? { ...img, file: newFile, url: newState.url, width: w, height: h, size: newFile.size }
+            : img
+        ),
+        history: new Map(state.history).set(imageId, newHistory),
+        historyIndex: new Map(state.historyIndex).set(imageId, newHistory.length - 1),
+      }));
+    };
+
+    if (newWidth !== undefined && newHeight !== undefined) {
+      updateHistory(newWidth, newHeight);
+    } else {
+      getImageDimensions(newFile).then(({ width, height }) => updateHistory(width, height));
+    }
+  },
+
+  /**
+   * Undo last operation
+   */
+  undo: (imageId: string) => {
+    const { history, historyIndex } = get();
+    const imageHistory = history.get(imageId);
+    const currentIndex = historyIndex.get(imageId);
+
+    if (!imageHistory || currentIndex === undefined || currentIndex <= 0) return;
+
+    const newIndex = currentIndex - 1;
+    const previousState = imageHistory[newIndex];
+
+    console.log('⏪ Undo:', imageHistory[currentIndex].operation.type, '→', previousState.operation.type);
+
+    set(state => ({
+      images: state.images.map(img =>
+        img.id === imageId
+          ? { ...img, file: previousState.file, url: previousState.url, width: previousState.width, height: previousState.height, size: previousState.file.size }
+          : img
+      ),
+      historyIndex: new Map(state.historyIndex).set(imageId, newIndex)
+    }));
+  },
+
+  /**
+   * Redo last undone operation
+   */
+  redo: (imageId: string) => {
+    const { history, historyIndex } = get();
+    const imageHistory = history.get(imageId);
+    const currentIndex = historyIndex.get(imageId);
+
+    if (!imageHistory || currentIndex === undefined || currentIndex >= imageHistory.length - 1) return;
+
+    const newIndex = currentIndex + 1;
+    const nextState = imageHistory[newIndex];
+
+    console.log('⏩ Redo:', imageHistory[currentIndex].operation.type, '→', nextState.operation.type);
+
+    set(state => ({
+      images: state.images.map(img =>
+        img.id === imageId
+          ? { ...img, file: nextState.file, url: nextState.url, width: nextState.width, height: nextState.height, size: nextState.file.size }
+          : img
+      ),
+      historyIndex: new Map(state.historyIndex).set(imageId, newIndex)
+    }));
+  },
+
+  /**
+   * Check if undo is available
+   */
+  canUndo: (imageId: string) => {
+    const currentIndex = get().historyIndex.get(imageId);
+    return currentIndex !== undefined && currentIndex > 0;
+  },
+
+  /**
+   * Check if redo is available
+   */
+  canRedo: (imageId: string) => {
+    const { history, historyIndex } = get();
+    const list = history.get(imageId);
+    const index = historyIndex.get(imageId);
+    return !!list && index !== undefined && index < list.length - 1;
   },
 }));
 

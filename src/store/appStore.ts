@@ -38,6 +38,7 @@ interface AppState {
   // Loading States
   isLoading: boolean;
   loadingMessage: string | null;
+  loadingProgress: number | null; // 0-100 or null for indeterminate
 
   // Error Handling
   globalError: Error | null;
@@ -67,7 +68,8 @@ interface AppState {
   resetWasmModules: () => void;
 
   // Loading State Management
-  setLoading: (loading: boolean, message?: string | null) => void;
+  setLoading: (loading: boolean, message?: string | null, progress?: number | null) => void;
+  setLoadingProgress: (progress: number | null) => void;
 
   // Error Handling
   setGlobalError: (error: Error | null) => void;
@@ -102,6 +104,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   isLoading: false,
   loadingMessage: null,
+  loadingProgress: null,
   globalError: null,
 
   /**
@@ -265,8 +268,15 @@ export const useAppStore = create<AppState>((set) => ({
   /**
    * Set global loading state
    */
-  setLoading: (loading: boolean, message: string | null = null) => {
-    set({ isLoading: loading, loadingMessage: message });
+  setLoading: (loading: boolean, message: string | null = null, progress: number | null = null) => {
+    set({ isLoading: loading, loadingMessage: message, loadingProgress: progress });
+  },
+
+  /**
+   * Set loading progress
+   */
+  setLoadingProgress: (progress: number | null) => {
+    set({ loadingProgress: progress });
   },
 
   /**

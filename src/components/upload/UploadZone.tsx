@@ -1,5 +1,7 @@
 import React, { useState, useRef, DragEvent, ChangeEvent } from 'react';
+import { Upload, CheckCircle, AlertTriangle } from 'lucide-react';
 import { validateFiles } from '../../utils/fileUtils';
+import { showErrorToast, showWarningToast, showSuccessToast } from '../../store/toastStore';
 import { MAX_FILE_SIZE, MAX_FILES_UPLOAD, SUPPORTED_INPUT_FORMATS } from '../../utils/constants';
 import { ImageFormat } from '../../types';
 
@@ -21,7 +23,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   compact = false,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -56,7 +58,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
   };
 
   const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
-    if (disabled) return;
+    if (disabled || isProcessing) return;
     const files = e.target.files ? Array.from(e.target.files) : [];
     processFiles(files);
     if (fileInputRef.current) {
@@ -64,27 +66,56 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     }
   };
 
-  const processFiles = (files: File[]) => {
-    setError(null);
+  const processFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    const validationResult = validateFiles(files, {
-      maxSize: maxFileSize,
-      maxCount: maxFiles,
-      allowedFormats: acceptedFormats,
-    });
+    setIsProcessing(true);
 
-    if (!validationResult.valid) {
-      setError(validationResult.errors[0]);
-    }
+    try {
+      // Validate files
+      const validationResult = validateFiles(files, {
+        maxSize: maxFileSize,
+        maxCount: maxFiles,
+        allowedFormats: acceptedFormats,
+      });
 
-    if (validationResult.validFiles.length > 0) {
-      onFilesSelected(validationResult.validFiles);
+      // Show errors with Toast
+      if (!validationResult.valid && validationResult.errors.length > 0) {
+        validationResult.errors.forEach(error => {
+          showErrorToast('Upload Failed', error);
+        });
+      }
+
+      // Show warnings for partially valid files
+      if (validationResult.validFiles.length > 0 && validationResult.errors.length > 0) {
+        showWarningToast(
+          'Some Files Skipped',
+          `${validationResult.validFiles.length} of ${files.length} files uploaded successfully`
+        );
+      }
+
+      // Process valid files
+      if (validationResult.validFiles.length > 0) {
+        onFilesSelected(validationResult.validFiles);
+
+        // Success feedback
+        if (validationResult.errors.length === 0) {
+          const count = validationResult.validFiles.length;
+          showSuccessToast(
+            'Upload Successful',
+            `${count} ${count === 1 ? 'file' : 'files'} uploaded successfully`
+          );
+        }
+      }
+    } catch (error) {
+      showErrorToast('Upload Error', error instanceof Error ? error.message : 'Failed to process files');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleBrowseClick = () => {
-    if (disabled) return;
+    if (disabled || isProcessing) return;
     fileInputRef.current?.click();
   };
 
@@ -92,9 +123,9 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
     <div className="w-full">
       <div
         role="button"
-        tabIndex={disabled ? -1 : 0}
+        tabIndex={disabled || isProcessing ? -1 : 0}
         aria-label="Upload area"
-        aria-disabled={disabled}
+        aria-disabled={disabled || isProcessing}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -105,13 +136,13 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
         }}
         className={`
           relative border-2 border-dashed rounded-xl transition-all duration-200 ease-in-out
-          flex flex-col items-center justify-center text-center cursor-pointer
-          ${compact ? 'p-4 min-h-[120px]' : 'p-8 min-h-[200px]'}
-          ${disabled
+          flex flex-col items-center justify-center text-center
+          ${compact ? 'p-4 min-h-[120px]' : 'p-8 min-h-[240px]'}
+          ${disabled || isProcessing
             ? 'bg-zinc-900 border-zinc-700 cursor-not-allowed opacity-60'
             : isDragging
-              ? 'border-blue-500 bg-blue-950/50 scale-[1.01] shadow-lg'
-              : 'border-zinc-700 hover:border-blue-500 hover:bg-zinc-900/50 bg-zinc-900/30'
+              ? 'border-blue-500 bg-blue-950/50 scale-[1.02] shadow-xl shadow-blue-900/20 cursor-copy'
+              : 'border-zinc-700 hover:border-blue-500 hover:bg-zinc-900/50 bg-zinc-900/30 cursor-pointer'
           }
         `}
       >
@@ -122,43 +153,75 @@ export const UploadZone: React.FC<UploadZoneProps> = ({
           className="hidden"
           accept={acceptedFormats.map(f => f.toString()).join(',')}
           onChange={handleFileInput}
-          disabled={disabled}
+          disabled={disabled || isProcessing}
         />
 
+        {/* Upload Icon */}
         <div className={`
-          p-3 rounded-full mb-2 transition-colors duration-200
+          p-3 rounded-full mb-3 transition-all duration-200
           ${compact ? '' : 'p-4 mb-4'}
-          ${isDragging ? 'bg-blue-900/50 text-blue-400' : 'bg-zinc-800 text-zinc-500'}
+          ${isProcessing
+            ? 'bg-blue-900/50 text-blue-400 animate-pulse'
+            : isDragging
+              ? 'bg-blue-900/50 text-blue-400 scale-110'
+              : 'bg-zinc-800 text-zinc-500'
+          }
         `}>
-          <svg xmlns="http://www.w3.org/2000/svg" className={compact ? 'h-6 w-6' : 'h-10 w-10'} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
+          {isProcessing ? (
+            <CheckCircle className={compact ? 'h-6 w-6' : 'h-10 w-10'} />
+          ) : (
+            <Upload className={compact ? 'h-6 w-6' : 'h-10 w-10'} />
+          )}
         </div>
 
-        <h3 className={`font-semibold text-zinc-300 ${compact ? 'text-sm mb-1' : 'text-lg mb-2'}`}>
-          {isDragging ? 'Drop files here' : (compact ? 'Upload Files' : 'Drag & Drop files here')}
+        {/* Upload Title */}
+        <h3 className={`font-semibold transition-colors ${compact ? 'text-sm mb-1' : 'text-lg mb-2'} ${
+          isDragging ? 'text-blue-400' : 'text-zinc-300'
+        }`}>
+          {isProcessing
+            ? 'Processing...'
+            : isDragging
+              ? 'Drop files here'
+              : compact
+                ? 'Upload Files'
+                : 'Drag & Drop files here'
+          }
         </h3>
 
+        {/* Upload Description */}
         {!compact && (
-          <p className="text-sm text-zinc-400 mb-4 max-w-xs">
-            or click to browse from your computer
+          <p className={`text-sm mb-4 max-w-xs transition-colors ${
+            isDragging ? 'text-blue-300' : 'text-zinc-400'
+          }`}>
+            {isProcessing
+              ? 'Validating your files...'
+              : 'or click to browse from your computer'
+            }
           </p>
         )}
 
-        <div className={`text-zinc-500 space-y-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-          {!compact && <p>Supported: {acceptedFormats.map(f => f.toString().split('/')[1]?.toUpperCase()).join(', ')}</p>}
-          {!compact && <p>Max size: {Math.round(maxFileSize / 1024 / 1024)}MB</p>}
+        {/* File Restrictions */}
+        <div className={`space-y-1 ${compact ? 'text-[10px]' : 'text-xs'} ${
+          isDragging ? 'text-blue-300' : 'text-zinc-500'
+        }`}>
+          {!compact && (
+            <>
+              <div className="flex items-center justify-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Supported: {acceptedFormats.map(f => f.toString().split('/')[1]?.toUpperCase()).join(', ')}</span>
+              </div>
+              <div className="flex items-center justify-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                <span>Max size: {Math.round(maxFileSize / 1024 / 1024)}MB per file</span>
+              </div>
+              <div className="flex items-center justify-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Upload up to {maxFiles} files at once</span>
+              </div>
+            </>
+          )}
           {compact && <p className="text-zinc-600">Click or drag files</p>}
         </div>
-
-        {error && (
-          <div
-            className="absolute bottom-4 left-0 right-0 mx-auto w-max max-w-[90%] bg-red-900/90 text-red-200 text-sm py-2 px-4 rounded-full animate-fade-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {error}
-          </div>
-        )}
       </div>
     </div>
   );

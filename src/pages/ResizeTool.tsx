@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { ResizeControls } from '../components/resize';
-import { ResizeQuality, MessageType } from '../types';
+import { ResizeQuality, MessageType, OperationType } from '../types';
 import { getCoreWorker } from '../utils/workerManager';
 
 export const ResizeTool = () => {
-  const { getSelectedImage } = useImageStore();
+  const { getSelectedImage, applyOperation } = useImageStore();
   const selectedImage = getSelectedImage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [resizeParams, setResizeParams] = useState<{
@@ -18,16 +18,6 @@ export const ResizeTool = () => {
     quality: ResizeQuality.High,
   });
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-
-  // Cleanup result URL on unmount
-  useEffect(() => {
-    return () => {
-      if (resultUrl) {
-        URL.revokeObjectURL(resultUrl);
-      }
-    };
-  }, [resultUrl]);
 
   if (!selectedImage) {
     return (
@@ -113,11 +103,24 @@ export const ResizeTool = () => {
         resultCtx.putImageData(resizedImageData, 0, 0);
       }
 
-      // Convert to blob and create URL
+      // Convert to blob and apply operation
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
+          const newFile = new File(
+            [blob],
+            selectedImage.fileName,
+            { type: 'image/png' }
+          );
+
+          applyOperation(selectedImage.id, newFile, {
+            type: OperationType.RESIZE,
+            params: {
+              ...resizeParams,
+              mode: 'precise',
+              maintainAspectRatio: false,
+            },
+            timestamp: Date.now()
+          }, response.data!.width, response.data!.height);
         }
       }, 'image/png');
 
@@ -144,7 +147,6 @@ export const ResizeTool = () => {
       quality: ResizeQuality.High,
     };
     setResizeParams(originalSize);
-    setResultUrl(null);
   };
 
   return (
@@ -159,21 +161,6 @@ export const ResizeTool = () => {
           Image: {selectedImage.file.name} ({selectedImage.width} × {selectedImage.height} px)
         </p>
       </div>
-
-      {/* Result Preview */}
-      {resultUrl && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-3">✅ Resize Result</h3>
-          <div className="flex items-center gap-4">
-            <img src={resultUrl} alt="Resized result" className="max-w-xs rounded-lg shadow" />
-            <div className="text-sm text-green-700">
-              <p>New size: {resizeParams.width} × {resizeParams.height} px</p>
-              <p>Scale: {((resizeParams.width / selectedImage.width) * 100).toFixed(1)}%</p>
-              <p>Quality: {resizeParams.quality === ResizeQuality.High ? 'High (Bicubic)' : 'Fast (Bilinear)'}</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Resize Controls */}
       <ResizeControls

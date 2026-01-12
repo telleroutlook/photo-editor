@@ -1,14 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { CompressControls } from '../components/compress';
-import { CompressionFormat } from '../types';
+import { CompressionFormat, OperationType } from '../types';
 import type { JpegAdvancedParams, WebPAdvancedParams } from '../types/wasm';
 import { formatBytes } from '../utils/constants';
 import { useCompressWorker } from '../hooks/useCompressWorker';
 import { fileToImageData } from '../utils/imageUtils';
 
 export const CompressTool = () => {
-  const { getSelectedImage } = useImageStore();
+  const { getSelectedImage, applyOperation } = useImageStore();
   const selectedImage = getSelectedImage();
   const [compressParams, setCompressParams] = useState<{
     format: CompressionFormat;
@@ -110,7 +110,17 @@ export const CompressTool = () => {
       // Convert Uint8Array to regular ArrayBuffer to avoid SharedArrayBuffer issues
       const buffer = new ArrayBuffer(result.imageData.length);
       new Uint8Array(buffer).set(result.imageData);
-      void new File([buffer], newName, { type: mimeType });
+      const newFile = new File([buffer], newName, { type: mimeType });
+
+      // Apply to store instead of downloading
+      applyOperation(selectedImage.id, newFile, {
+        type: OperationType.COMPRESS,
+        params: {
+          ...compressParams,
+          mode: targetSize ? 'target_size' : 'quality',
+        },
+        timestamp: Date.now()
+      }, selectedImage.width, selectedImage.height); // Compression usually doesn't change dimensions
 
       // Display success message
       const mode = targetSize ? 'Target Size' : 'Quality';
@@ -137,7 +147,7 @@ export const CompressTool = () => {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng]);
+  }, [selectedImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng, applyOperation]);
 
   const handleReset = useCallback(() => {
     const defaultParams = {

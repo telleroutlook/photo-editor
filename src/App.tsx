@@ -3,6 +3,7 @@ import { useAppStore } from './store/appStore';
 import { useImageStore } from './store/imageStore';
 import { showSuccessToast, showErrorToast, showWarningToast } from './store/toastStore';
 import { ToastContainer } from './components/common/Toast';
+import { LoadingOverlay } from './components/common/LoadingOverlay';
 import { WorkspaceLayout } from './layouts/WorkspaceLayout';
 import { FileList } from './components/upload/FileList';
 import { UploadZone } from './components/upload/UploadZone';
@@ -25,11 +26,12 @@ import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, CropRect 
 import type { JpegAdvancedParams, WebPAdvancedParams } from './types/wasm';
 import { useCompressWorker } from './hooks/useCompressWorker';
 import { useCoreWorker } from './hooks/useCoreWorker';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { fileToImageData } from './utils/imageUtils';
 import { formatBytes } from './utils/constants';
 
 function App() {
-  const { currentFeature, setDarkMode } = useAppStore();
+  const { currentFeature, setDarkMode, setLoading } = useAppStore();
   const { addImages, getSelectedImage } = useImageStore();
 
   const currentImage = getSelectedImage();
@@ -38,6 +40,25 @@ function App() {
   useEffect(() => {
     setDarkMode(true);
   }, [setDarkMode]);
+
+  // Enable global keyboard shortcuts
+  useKeyboardShortcuts({
+    enableUndo: true,
+    enableRedo: true,
+    enableSave: true,
+    enableHelp: true,
+    onSave: () => {
+      // Custom save handler: download current image
+      if (currentImage) {
+        const a = document.createElement('a');
+        a.href = currentImage.url;
+        a.download = currentImage.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    },
+  });
 
   // ============= COMPRESS TOOL STATE =============
   const [compressParams, setCompressParams] = useState<{
@@ -151,6 +172,7 @@ function App() {
     }
 
     setIsCompressing(true);
+    setLoading(true, 'Compressing image...');
     try {
       if (wasmError) {
         throw new Error(`WASM initialization failed: ${wasmError.message}`);
@@ -237,8 +259,9 @@ function App() {
       showErrorToast('Compression Failed', errorMessage);
     } finally {
       setIsCompressing(false);
+      setLoading(false);
     }
-  }, [currentImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng]);
+  }, [currentImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng, setLoading]);
 
   const handleResetCompress = useCallback(() => {
     setCompressParams({
@@ -258,6 +281,7 @@ function App() {
     if (!currentImage) return;
 
     setIsResizing(true);
+    setLoading(true, 'Resizing image...');
     try {
       const { width: newWidth, height: newHeight, quality } = resizeParams;
 
@@ -318,8 +342,9 @@ function App() {
       showErrorToast('Resize Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsResizing(false);
+      setLoading(false);
     }
-  }, [currentImage, resizeParams, resizeImage]);
+  }, [currentImage, resizeParams, resizeImage, setLoading]);
 
   const handleResetResize = useCallback(() => {
     if (currentImage) {
@@ -337,6 +362,7 @@ function App() {
 
     setRotation(angle);
     setIsRotating(true);
+    setLoading(true, `Rotating image ${angle}°...`);
 
     try {
       // Convert image to RGBA buffer
@@ -388,13 +414,15 @@ function App() {
       showErrorToast('Rotation Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
+      setLoading(false);
     }
-  }, [currentImage, rotateImage]);
+  }, [currentImage, rotateImage, setLoading]);
 
   const handleFlipHorizontal = useCallback(async () => {
     if (!currentImage) return;
 
     setIsRotating(true);
+    setLoading(true, 'Flipping image horizontally...');
     try {
       // Convert image to RGBA buffer
       const imageData = await fileToImageData(currentImage.file);
@@ -434,13 +462,15 @@ function App() {
       showErrorToast('Flip Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
+      setLoading(false);
     }
-  }, [currentImage, flipImage]);
+  }, [currentImage, flipImage, setLoading]);
 
   const handleFlipVertical = useCallback(async () => {
     if (!currentImage) return;
 
     setIsRotating(true);
+    setLoading(true, 'Flipping image vertically...');
     try {
       // Convert image to RGBA buffer
       const imageData = await fileToImageData(currentImage.file);
@@ -480,8 +510,9 @@ function App() {
       showErrorToast('Flip Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsRotating(false);
+      setLoading(false);
     }
-  }, [currentImage, flipImage]);
+  }, [currentImage, flipImage, setLoading]);
 
   const handleResetRotate = useCallback(() => {
     setRotation(0);
@@ -505,6 +536,7 @@ function App() {
     if (!currentImage) return;
 
     setIsCropping(true);
+    setLoading(true, 'Cropping image...');
     try {
       // Convert image to RGBA buffer
       const imageData = await fileToImageData(currentImage.file);
@@ -555,8 +587,9 @@ function App() {
       showErrorToast('Crop Failed', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsCropping(false);
+      setLoading(false);
     }
-  }, [currentImage, cropRect, cropImage]);
+  }, [currentImage, cropRect, cropImage, setLoading]);
 
   const handleResetCrop = useCallback(() => {
     if (currentImage) {
@@ -804,6 +837,7 @@ function App() {
         {renderCanvas()}
       </WorkspaceLayout>
       <ToastContainer />
+      <LoadingOverlay />
     </>
   );
 }

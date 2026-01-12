@@ -12,6 +12,7 @@
 
 import React from 'react';
 import { useAppStore } from '../store/appStore';
+import { useImageStore } from '../store/imageStore';
 import {
   Crop,
   RotateCcw,
@@ -21,7 +22,10 @@ import {
   Eraser,
   Layers,
   Moon,
-  Sun
+  Sun,
+  Undo,
+  Redo,
+  Download
 } from 'lucide-react';
 
 interface WorkspaceLayoutProps {
@@ -36,6 +40,8 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
   bottomPanel
 }) => {
   const { currentFeature, setCurrentFeature, darkMode, toggleDarkMode } = useAppStore();
+  const { getSelectedImage, undo, redo, canUndo, canRedo } = useImageStore();
+  const selectedImage = getSelectedImage();
 
   const navItems = [
     { id: 'upload', icon: Upload, label: 'Upload' },
@@ -47,6 +53,21 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
     { id: 'batch', icon: Layers, label: 'Batch' },
   ];
 
+  const handleUndo = () => selectedImage && undo(selectedImage.id);
+  const handleRedo = () => selectedImage && redo(selectedImage.id);
+  const handleDownload = () => {
+    if (!selectedImage) return;
+    const a = document.createElement('a');
+    a.href = selectedImage.url;
+    a.download = selectedImage.fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const hasUndo = selectedImage ? canUndo(selectedImage.id) : false;
+  const hasRedo = selectedImage ? canRedo(selectedImage.id) : false;
+
   return (
     <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden font-sans">
       {/* Top Header - Minimal */}
@@ -55,6 +76,35 @@ export const WorkspaceLayout: React.FC<WorkspaceLayoutProps> = ({
           <span className="text-xl">📷</span>
           <span className="font-bold text-sm tracking-wide">PHOTO EDITOR</span>
           <span className="text-xs text-zinc-500 hidden sm:inline">Privacy-first • Client-side Processing</span>
+        </div>
+
+        {/* Center Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleUndo}
+            disabled={!hasUndo}
+            className={`p-1.5 rounded transition-colors ${hasUndo ? 'hover:bg-zinc-700 text-zinc-200' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Undo"
+          >
+            <Undo size={16} />
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={!hasRedo}
+            className={`p-1.5 rounded transition-colors ${hasRedo ? 'hover:bg-zinc-700 text-zinc-200' : 'text-zinc-700 cursor-not-allowed'}`}
+            title="Redo"
+          >
+            <Redo size={16} />
+          </button>
+          <div className="w-px h-4 bg-zinc-700 mx-2" />
+          <button
+            onClick={handleDownload}
+            disabled={!selectedImage}
+            className={`flex items-center gap-1 px-3 py-1 rounded text-xs font-medium transition-colors ${selectedImage ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+          >
+            <Download size={14} />
+            Download
+          </button>
         </div>
 
         {/* Dark Mode Toggle */}

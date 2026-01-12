@@ -82,6 +82,7 @@ export interface ProcessingMetadata {
  * Image operation type
  */
 export enum OperationType {
+  IMPORT = 'import',
   CROP = 'crop',
   RESIZE = 'resize',
   ROTATE = 'rotate',
@@ -97,6 +98,13 @@ export enum OperationType {
 export interface Operation {
   type: OperationType;
   timestamp: number;
+}
+
+/**
+ * Import operation (initial state)
+ */
+export interface ImportOperation extends Operation {
+  type: OperationType.IMPORT;
 }
 
 /**
@@ -231,6 +239,7 @@ export interface RemoveBackgroundParams {
  * Union type for all operations
  */
 export type AnyOperation =
+  | ImportOperation
   | CropOperation
   | ResizeOperation
   | RotateOperation
@@ -238,6 +247,18 @@ export type AnyOperation =
   | CompressOperation
   | ConvertFormatOperation
   | RemoveBackgroundOperation;
+
+/**
+ * Image history state for undo/redo
+ */
+export interface ImageHistoryState {
+  file: File;
+  url: string;
+  width: number;
+  height: number;
+  operation: AnyOperation;
+  timestamp: number;
+}
 
 /**
  * Processing queue item
