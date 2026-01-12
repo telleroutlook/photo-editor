@@ -22,7 +22,7 @@ import { CropControls } from './components/crop/CropControls';
 import { BgRemoveControls } from './components/bgremove/BgRemoveControls';
 
 // Types and Hooks
-import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, CropRect } from './types';
+import { CompressionFormat, ResizeQuality, RotateAngle, FlipDirection, CropRect, OperationType } from './types';
 import type { JpegAdvancedParams, WebPAdvancedParams } from './types/wasm';
 import { useCompressWorker } from './hooks/useCompressWorker';
 import { useCoreWorker } from './hooks/useCoreWorker';
@@ -32,7 +32,7 @@ import { formatBytes } from './utils/constants';
 
 function App() {
   const { currentFeature, setDarkMode, setLoading } = useAppStore();
-  const { addImages, getSelectedImage } = useImageStore();
+  const { addImages, getSelectedImage, applyOperation } = useImageStore();
 
   const currentImage = getSelectedImage();
 
@@ -139,22 +139,6 @@ function App() {
     }
   }, [currentImage]);
 
-  // ============= HELPER FUNCTIONS =============
-
-  /**
-   * Download processed image
-   */
-  const downloadImage = (blob: Blob, originalName: string, suffix: string, format: string) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${originalName.replace(/\.[^/.]+$/, '')}_${suffix}.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   // ============= COMPRESS TOOL HANDLERS =============
   const handleCompressChange = useCallback((params: {
     format: CompressionFormat;
@@ -230,8 +214,17 @@ function App() {
       const buffer = new ArrayBuffer(result.imageData.length);
       new Uint8Array(buffer).set(result.imageData);
 
-      // Download the compressed file
-      downloadImage(new Blob([buffer], { type: mimeType }), currentImage.file.name, 'compressed', extension);
+      // Apply operation to update the main image (instead of downloading)
+      const newFile = new File([buffer], newName, { type: mimeType });
+      applyOperation(currentImage.id, newFile, {
+        type: OperationType.COMPRESS,
+        params: {
+          format,
+          quality: result.quality,
+          mode: targetSize ? 'target_size' : 'quality',
+        },
+        timestamp: Date.now()
+      }, currentImage.width, currentImage.height); // Compression doesn't change dimensions
 
       const mode = targetSize ? 'Target Size' : 'Quality';
       const formatLabel = format === CompressionFormat.WebP ? 'WebP' : format === CompressionFormat.JPEG ? 'JPEG' : 'PNG';
@@ -261,7 +254,7 @@ function App() {
       setIsCompressing(false);
       setLoading(false);
     }
-  }, [currentImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng, setLoading]);
+  }, [currentImage, wasmError, compressParams, compressToSize, compressWebp, compressJpeg, compressPng, setLoading, applyOperation]);
 
   const handleResetCompress = useCallback(() => {
     setCompressParams({
@@ -315,10 +308,26 @@ function App() {
       }
       resultCtx.putImageData(resizedImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, 'resized', 'png');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, '_resized.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.RESIZE,
+            params: {
+              width: newWidth,
+              height: newHeight,
+              quality,
+              mode: 'precise',
+              maintainAspectRatio: false,
+            },
+            timestamp: Date.now()
+          }, result.width, result.height);
 
           const scale = Math.round((newWidth / currentImage.width) * 100);
           const details = [
@@ -344,7 +353,7 @@ function App() {
       setIsResizing(false);
       setLoading(false);
     }
-  }, [currentImage, resizeParams, resizeImage, setLoading]);
+  }, [currentImage, resizeParams, resizeImage, setLoading, applyOperation]);
 
   const handleResetResize = useCallback(() => {
     if (currentImage) {
@@ -389,10 +398,20 @@ function App() {
       }
       resultCtx.putImageData(rotatedImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, `rotated_${angle}deg`, 'png');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, `_rotated_${angle}.png`),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.ROTATE,
+            params: { angle, autoFixEXIF: false },
+            timestamp: Date.now()
+          }, result.width, result.height);
 
           const details = [
             `Angle: ${angle}deg`,
@@ -416,7 +435,7 @@ function App() {
       setIsRotating(false);
       setLoading(false);
     }
-  }, [currentImage, rotateImage, setLoading]);
+  }, [currentImage, rotateImage, setLoading, applyOperation]);
 
   const handleFlipHorizontal = useCallback(async () => {
     if (!currentImage) return;
@@ -448,10 +467,21 @@ function App() {
       }
       resultCtx.putImageData(flippedImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, 'flipped_horizontal', 'png');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, '_flipped_h.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.FLIP,
+            params: { direction: FlipDirection.Horizontal },
+            timestamp: Date.now()
+          }, result.width, result.height);
+
           showSuccessToast('Horizontal Flip Complete', `Size: ${currentImage.width} x ${currentImage.height} px`);
         }
       }, 'image/png');
@@ -464,7 +494,7 @@ function App() {
       setIsRotating(false);
       setLoading(false);
     }
-  }, [currentImage, flipImage, setLoading]);
+  }, [currentImage, flipImage, setLoading, applyOperation]);
 
   const handleFlipVertical = useCallback(async () => {
     if (!currentImage) return;
@@ -496,10 +526,21 @@ function App() {
       }
       resultCtx.putImageData(flippedImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, 'flipped_vertical', 'png');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, '_flipped_v.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.FLIP,
+            params: { direction: FlipDirection.Vertical },
+            timestamp: Date.now()
+          }, result.width, result.height);
+
           showSuccessToast('Vertical Flip Complete', `Size: ${currentImage.width} x ${currentImage.height} px`);
         }
       }, 'image/png');
@@ -512,7 +553,7 @@ function App() {
       setIsRotating(false);
       setLoading(false);
     }
-  }, [currentImage, flipImage, setLoading]);
+  }, [currentImage, flipImage, setLoading, applyOperation]);
 
   const handleResetRotate = useCallback(() => {
     setRotation(0);
@@ -562,10 +603,23 @@ function App() {
       }
       resultCtx.putImageData(croppedImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, 'cropped', 'png');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, '_cropped.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.CROP,
+            params: cropRect,
+            timestamp: Date.now()
+          }, result.width, result.height);
+
+          // Reset crop selection to full image (which is now the cropped result)
+          setCropRect({ x: 0, y: 0, width: result.width, height: result.height });
 
           const details = [
             `Original: ${currentImage.width} x ${currentImage.height} px`,
@@ -589,7 +643,7 @@ function App() {
       setIsCropping(false);
       setLoading(false);
     }
-  }, [currentImage, cropRect, cropImage, setLoading]);
+  }, [currentImage, cropRect, cropImage, setLoading, applyOperation]);
 
   const handleResetCrop = useCallback(() => {
     if (currentImage) {
@@ -624,11 +678,24 @@ function App() {
       }
       resultCtx.putImageData(resultImageData, 0, 0);
 
-      // Convert to blob and download
+      // Convert to blob and apply operation (instead of downloading)
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          downloadImage(blob, currentImage.file.name, 'bgremoved', 'png');
-          showSuccessToast('Background Removal Complete', 'Image saved successfully');
+          const newFile = new File(
+            [blob],
+            currentImage.fileName.replace(/\.[^/.]+$/, '_bgremoved.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(currentImage.id, newFile, {
+            type: OperationType.REMOVE_BACKGROUND,
+            params: {
+              method: 'magic_wand', // Default method
+            },
+            timestamp: Date.now()
+          }, width, height);
+
+          showSuccessToast('Background Removal Complete', 'Image updated successfully');
         }
       }, 'image/png');
 
@@ -637,7 +704,7 @@ function App() {
       console.error('Background removal failed:', error);
       showErrorToast('Background Removal Failed', error instanceof Error ? error.message : 'Unknown error');
     }
-  }, [currentImage]);
+  }, [currentImage, applyOperation]);
 
   const handleFilesSelected = async (files: File[]) => {
     console.log('📁 Files selected:', files.map(f => f.name));

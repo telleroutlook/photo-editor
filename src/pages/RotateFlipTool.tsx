@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useImageStore } from '../store/imageStore';
 import { RotateFlipControls } from '../components/rotate';
-import { RotateAngle, MessageType } from '../types';
+import { RotateAngle, MessageType, OperationType, FlipDirection } from '../types';
 import { getCoreWorker } from '../utils/workerManager';
 
 // Type-safe worker response data
@@ -12,22 +12,11 @@ interface ImageDataResponse {
 }
 
 export const RotateFlipTool = () => {
-  const { getSelectedImage } = useImageStore();
+  const { getSelectedImage, applyOperation } = useImageStore();
   const selectedImage = getSelectedImage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [rotation, setRotation] = useState<RotateAngle>(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
-  const [lastOperation, setLastOperation] = useState<string | null>(null);
-
-  // Cleanup result URL on unmount
-  useEffect(() => {
-    return () => {
-      if (resultUrl) {
-        URL.revokeObjectURL(resultUrl);
-      }
-    };
-  }, [resultUrl]);
 
   if (!selectedImage) {
     return (
@@ -40,7 +29,6 @@ export const RotateFlipTool = () => {
 
   const handleRotateChange = async (angle: RotateAngle) => {
     setIsProcessing(true);
-    setLastOperation(null);
     try {
       // Get image data from canvas
       const canvas = canvasRef.current;
@@ -101,16 +89,25 @@ export const RotateFlipTool = () => {
         resultCtx.putImageData(rotatedImageData, 0, 0);
       }
 
-      // Convert to blob and create URL
+      // Convert to blob and apply operation to update the main image
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
+          const newFile = new File(
+            [blob],
+            selectedImage.fileName.replace(/\.[^/.]+$/, `_rotated_${angle}.png`),
+            { type: 'image/png' }
+          );
+
+          applyOperation(selectedImage.id, newFile, {
+            type: OperationType.ROTATE,
+            params: { angle, autoFixEXIF: false },
+            timestamp: Date.now()
+          }, response.data!.width, response.data!.height);
+
           setRotation(angle);
         }
       }, 'image/png');
 
-      setLastOperation(`Rotated ${angle}°`);
       console.log('✅ Rotation applied successfully', {
         angle,
         from: `${selectedImage.width}×${selectedImage.height}`,
@@ -127,7 +124,6 @@ export const RotateFlipTool = () => {
 
   const handleFlipHorizontal = async () => {
     setIsProcessing(true);
-    setLastOperation(null);
     try {
       // Get image data from canvas
       const canvas = canvasRef.current;
@@ -192,15 +188,23 @@ export const RotateFlipTool = () => {
         resultCtx.putImageData(flippedImageData, 0, 0);
       }
 
-      // Convert to blob and create URL
+      // Convert to blob and apply operation to update the main image
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
+          const newFile = new File(
+            [blob],
+            selectedImage.fileName.replace(/\.[^/.]+$/, '_flipped_h.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(selectedImage.id, newFile, {
+            type: OperationType.FLIP,
+            params: { direction: FlipDirection.Horizontal },
+            timestamp: Date.now()
+          }, response.data!.width, response.data!.height);
         }
       }, 'image/png');
 
-      setLastOperation('Flipped horizontally');
       console.log('✅ Horizontal flip applied successfully', {
         processingTime: response.processingTime,
       });
@@ -214,7 +218,6 @@ export const RotateFlipTool = () => {
 
   const handleFlipVertical = async () => {
     setIsProcessing(true);
-    setLastOperation(null);
     try {
       // Get image data from canvas
       const canvas = canvasRef.current;
@@ -275,15 +278,23 @@ export const RotateFlipTool = () => {
         resultCtx.putImageData(flippedImageData, 0, 0);
       }
 
-      // Convert to blob and create URL
+      // Convert to blob and apply operation to update the main image
       resultCanvas.toBlob((blob) => {
         if (blob) {
-          const url = URL.createObjectURL(blob);
-          setResultUrl(url);
+          const newFile = new File(
+            [blob],
+            selectedImage.fileName.replace(/\.[^/.]+$/, '_flipped_v.png'),
+            { type: 'image/png' }
+          );
+
+          applyOperation(selectedImage.id, newFile, {
+            type: OperationType.FLIP,
+            params: { direction: FlipDirection.Vertical },
+            timestamp: Date.now()
+          }, response.data!.width, response.data!.height);
         }
       }, 'image/png');
 
-      setLastOperation('Flipped vertically');
       console.log('✅ Vertical flip applied successfully', {
         processingTime: response.processingTime,
       });
@@ -297,8 +308,6 @@ export const RotateFlipTool = () => {
 
   const handleReset = () => {
     setRotation(0);
-    setResultUrl(null);
-    setLastOperation(null);
   };
 
   return (
@@ -313,20 +322,6 @@ export const RotateFlipTool = () => {
           Image: {selectedImage.file.name} ({selectedImage.width} × {selectedImage.height} px)
         </p>
       </div>
-
-      {/* Result Preview */}
-      {resultUrl && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-green-800 mb-3">✅ Transformation Result</h3>
-          <div className="flex items-center gap-4">
-            <img src={resultUrl} alt="Transformed result" className="max-w-xs rounded-lg shadow" />
-            <div className="text-sm text-green-700">
-              <p>{lastOperation || 'Operation completed'}</p>
-              <p>Size: {selectedImage.width} × {selectedImage.height} px</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Controls */}
       <RotateFlipControls

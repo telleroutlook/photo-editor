@@ -369,17 +369,9 @@ export const useImageStore = create<ImageState>((set, get) => ({
 
       newHistory.push(newState);
 
-      // Limit history size (e.g., 50)
-      if (newHistory.length > 50) {
-        const removed = newHistory.shift();
-        if (removed && removed.url !== newState.url) {
-          try {
-            URL.revokeObjectURL(removed.url);
-          } catch (e) {
-            console.warn('Failed to revoke old history URL:', e);
-          }
-        }
-      }
+      // No history limit - allow unlimited undo/redo
+      // Memory management: Only revoke URLs for states that are no longer accessible
+      // (This happens automatically during cleanup when images are removed)
 
       console.log('📝 Operation applied:', operation.type, `(${imageId.slice(0, 8)})`);
 
